@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+/home/marcin/.yarn/bin/ts-node ./src/main.ts
