@@ -26,10 +26,7 @@ export function Engine(name: string, options?: EngineOptions) {
     engineProcess.stdin.write(`${command}\n`);
   };
 
-  const analyse = (
-    position: string,
-    depth: number
-  ): Promise<ReturnType<typeof parseScore>> => {
+  const analyse = (position: string, depth: number): Promise<ReturnType<typeof parseScore>> => {
     return new Promise((resolve, _reject) => {
       let output = "";
 
@@ -111,11 +108,12 @@ export function AuxiliaryEngine(name: string, options?: EngineOptions) {
 
 const COMMON_UCI = { MultiPV: 500 };
 
-export const stockfish = Engine("stockfish", { uci: { ...COMMON_UCI } });
+export const stockfish = Engine("stockfish", { uci: { ...COMMON_UCI, Threads: 4 } });
 export const maia = AuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
-    WeightsFile: path.resolve("./weights/maia-1200.pb.gz"),
+    Threads: 2,
+    WeightsFile: path.resolve("../maia-chess/maia_weights/maia-1200.pb.gz"),
     VerboseMoveStats: true,
   },
 });
