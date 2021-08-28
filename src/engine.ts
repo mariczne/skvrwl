@@ -113,7 +113,8 @@ export const maia = AuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
     Threads: 2,
-    WeightsFile: path.resolve("../maia-chess/maia_weights/maia-1200.pb.gz"),
+    // WeightsFile: path.resolve("../../maia-chess/maia_weights/maia-1200.pb.gz"),
+    WeightsFile: path.resolve("/home/marcin/Downloads/chess/maia-chess/maia_weights/maia-1200.pb.gz"),
     VerboseMoveStats: true,
   },
 });

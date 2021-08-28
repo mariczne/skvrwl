@@ -5,7 +5,7 @@ type MoveScore = {
 };
 
 export function parseScoreLine(line: string): MoveScore | null {
-  const matches = line.match(/^info depth.+score (?:cp|mate) (-?\d+).+pv ([a-z]\d[a-z]\d[a-z]?)/);
+  const matches = line.match(/^.+score (?:cp|mate) (-?\d+).+pv ([a-z]\d[a-z]\d[a-z]?)/);
 
   if (!matches) return null;
 

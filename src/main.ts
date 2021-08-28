@@ -1,13 +1,13 @@
 import { createInterface } from "readline";
 import { evaluate } from "./evaluate";
 
-async function main() {
-  const shell = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: "",
-  });
+export const shell = createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: "",
+});
 
+async function main() {
   shell.prompt();
 
   let position = "startpos";
@@ -15,7 +15,7 @@ async function main() {
   shell
     .on("line", async (line) => {
       if (line === "uci") {
-        process.stdout.write("id name Skurwiel\n");
+        process.stdout.write("id name skurwiel\n");
         process.stdout.write("id author mariczne\n");
         process.stdout.write("uciok\n");
         // process.stdout.write("readyok\n");

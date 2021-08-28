@@ -1,15 +1,34 @@
 import { appendFile } from "fs/promises";
 import path from "path";
 import { maia, stockfish } from "./engine";
+import { shell } from "./main";
 // import { getCurrentPOV, getScoreFromPOV } from "./utils";
 
-export async function evaluate(position: string) {
-  const sfInitialEval = await stockfish.analyse(position, 6);
-  // console.log({ sfInitialEval });
+function createAborter() {
+  let isAborted = false;
 
-  // console.log("Initial evaluation:", sfInitialEval);
+  const listenForStop = (line: string) => {
+    if (line.startsWith("stop")) {
+      isAborted = true;
+      shell.off("line", listenForStop);
+    }
+  };
+
+  shell.on("line", listenForStop);
+
+  return () => isAborted;
+}
+
+export async function evaluate(position: string) {
+  // process.stdin.on("data", (data) => {
+  //   console.log("data", String(data));
+  // });
+  // const isAborted = createAborter();
+
+  // if (isAborted()) return;
+
+  const sfInitialEval = await stockfish.analyse(position, 6);
   const safestMove = sfInitialEval[0];
-  // const sideToMove = getCurrentPOV(position);
 
   const evaluation: any[] = [];
 
@@ -32,24 +51,34 @@ export async function evaluate(position: string) {
 
       const possibleLoss = safestMove.cp - moveCandidate.cp;
 
-      const mostPossibleResponses = await maia.analyse(
+      const possibleResponses = await maia.analyse(
         `${position}${!position.includes("moves") ? " moves" : ""} ${moveCandidate.move}`
       );
 
-      if (moveCandidate.move === "a4d7") console.log({ moveCandidate, mostPossibleResponses });
-
+      const mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 10);
       if (!mostPossibleResponses.length) continue;
+      let trapEvaluation = [];
 
-      const trapEvaluation = await stockfish.analyse(
-        `${position}${!position.includes("moves") ? " moves" : ""} ${moveCandidate.move} ${
-          mostPossibleResponses[0].move
-        }`,
-        4
+      for (const answer of mostPossibleResponses) {
+        const answerEval = await stockfish.analyse(
+          `${position}${!position.includes("moves") ? " moves" : ""} ${moveCandidate.move} ${answer.move}`,
+          4
+        );
+
+        trapEvaluation.push({ cp: answerEval[0].cp, policy: answer.policy });
+      }
+
+      if (!trapEvaluation.length) continue;
+
+      // console.log({trapEvaluation});
+      
+
+      const avgTrapEvaluation = trapEvaluation.reduce(
+        (prev, curr, index) => (curr.cp * (curr.policy / 100) + prev) / (index + 1),
+        trapEvaluation[0].cp
       );
 
-      if (!trapEvaluation.length || !("cp" in trapEvaluation[0])) continue;
-
-      const possibleGain = trapEvaluation[0].cp - safestMove.cp;
+      const possibleGain = avgTrapEvaluation - safestMove.cp; // this is wrong now
 
       // moveCandidate.move === "g7g8" && console.log({trapEvaluation});
 
@@ -72,10 +101,10 @@ export async function evaluate(position: string) {
 
       evaluation.push({
         move: moveCandidate.move,
-        cp: trapEvaluation[0].cp,
-        loss: possibleLoss,
-        gain: possibleGain,
-        puregain: possibleGain - possibleLoss,
+        cp: Number(avgTrapEvaluation.toFixed(0)),
+        loss: Number(possibleLoss.toFixed(0)),
+        gain: Number(possibleGain.toFixed(0)),
+        puregain: Number((possibleGain - possibleLoss).toFixed(0)),
       });
     } catch (err) {
       console.error({ moveCandidate });
@@ -87,8 +116,8 @@ export async function evaluate(position: string) {
     // if (a.mate && b.mate) return a.mate > b.mate ? -1 : 1;
     // if (a.mate && !b.mate) return a.mate > 0 ? -1 : 1;
     // if (!a.mate && b.mate) return b.mate > 0 ? -1 : 1;
-    if (a.puregain && b.puregain && a.puregain !== b.puregain) return a.puregain > b.puregain ? -1 : 1;
     if (a.cp !== b.cp) return a.cp > b.cp ? -1 : 1;
+    if (a.puregain && b.puregain && a.puregain !== b.puregain) return a.puregain > b.puregain ? -1 : 1;
     if (a?.gain && b?.gain && a.gain !== b.gain) return a.gain > b.gain ? -1 : 1;
     if (a?.loss && b?.loss && a.loss !== b.loss) return a.loss > b.loss ? -1 : 1;
 

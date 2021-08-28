@@ -12,7 +12,7 @@ const config: RollupOptions = {
     file: outFile,
     format: "cjs",
   },
-  plugins: [resolve(), typescript(), terser({ ecma: 2020 }), shebang({ include: outFile })],
+  plugins: [resolve(), typescript({ module: "ES2020" }), terser({ ecma: 2020 }), shebang({ include: outFile })],
 };
 
 export default config;
