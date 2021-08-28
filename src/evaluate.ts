@@ -4,20 +4,20 @@ import { maia, stockfish } from "./engine";
 import { shell } from "./main";
 // import { getCurrentPOV, getScoreFromPOV } from "./utils";
 
-function createAborter() {
-  let isAborted = false;
+// function createAborter() {
+//   let isAborted = false;
 
-  const listenForStop = (line: string) => {
-    if (line.startsWith("stop")) {
-      isAborted = true;
-      shell.off("line", listenForStop);
-    }
-  };
+//   const listenForStop = (line: string) => {
+//     if (line.startsWith("stop")) {
+//       isAborted = true;
+//       shell.off("line", listenForStop);
+//     }
+//   };
 
-  shell.on("line", listenForStop);
+//   shell.on("line", listenForStop);
 
-  return () => isAborted;
-}
+//   return () => isAborted;
+// }
 
 export async function evaluate(position: string) {
   // process.stdin.on("data", (data) => {
@@ -26,8 +26,11 @@ export async function evaluate(position: string) {
   // const isAborted = createAborter();
 
   // if (isAborted()) return;
+  // [maia, stockfish].forEach((engine) => engine.send("ucinewgame"));
 
-  const sfInitialEval = await stockfish.analyse(position, 6);
+  const sfInitialEval = await stockfish.analyse(position, 8);
+  console.log("info debug", { sfInitialEval });
+
   const safestMove = sfInitialEval[0];
 
   const evaluation: any[] = [];
@@ -54,16 +57,32 @@ export async function evaluate(position: string) {
       const possibleResponses = await maia.analyse(
         `${position}${!position.includes("moves") ? " moves" : ""} ${moveCandidate.move}`
       );
+      if (!possibleResponses.length) continue;
 
-      const mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 10);
-      if (!mostPossibleResponses.length) continue;
+      let mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 15);
+      if (!mostPossibleResponses.length) mostPossibleResponses = [possibleResponses[0]];
+
       let trapEvaluation = [];
+      let bestAnswerEval;
+
+      if (moveCandidate.move === "c5b6") console.log(moveCandidate.move, { mostPossibleResponses });
+      if (moveCandidate.move === "c5d6") console.log(moveCandidate.move, { mostPossibleResponses });
+
+      const policiesSum = mostPossibleResponses.reduce((prev, curr) => prev + curr.policy, 0);
+      mostPossibleResponses = mostPossibleResponses.map((response) => ({
+        ...response,
+        policy: (response.policy / policiesSum) * 100,
+      }));
 
       for (const answer of mostPossibleResponses) {
         const answerEval = await stockfish.analyse(
           `${position}${!position.includes("moves") ? " moves" : ""} ${moveCandidate.move} ${answer.move}`,
-          4
+          8
         );
+        if (moveCandidate.move === "c5b6") console.log(moveCandidate.move, answer.move, { eval: answerEval[0] });
+        if (moveCandidate.move === "c5d6") console.log(moveCandidate.move, answer.move, { eval: answerEval[0] });
+
+        if (!bestAnswerEval || bestAnswerEval < answerEval[0].cp) bestAnswerEval = answerEval[0].cp;
 
         trapEvaluation.push({ cp: answerEval[0].cp, policy: answer.policy });
       }
@@ -71,14 +90,16 @@ export async function evaluate(position: string) {
       if (!trapEvaluation.length) continue;
 
       // console.log({trapEvaluation});
-      
 
-      const avgTrapEvaluation = trapEvaluation.reduce(
-        (prev, curr, index) => (curr.cp * (curr.policy / 100) + prev) / (index + 1),
-        trapEvaluation[0].cp
+      const avgTrapEvaluation = Math.round(
+        trapEvaluation.reduce(
+          (prev, curr, index) => (curr.cp * (curr.policy / 100) + prev) / (index + 1),
+          trapEvaluation[0].cp
+        )
       );
+      // console.log("info debug", { avgTrapEvaluation });
 
-      const possibleGain = avgTrapEvaluation - safestMove.cp; // this is wrong now
+      const possibleGain = bestAnswerEval ? bestAnswerEval - safestMove.cp : null; // this is wrong now
 
       // moveCandidate.move === "g7g8" && console.log({trapEvaluation});
 
@@ -101,10 +122,10 @@ export async function evaluate(position: string) {
 
       evaluation.push({
         move: moveCandidate.move,
-        cp: Number(avgTrapEvaluation.toFixed(0)),
-        loss: Number(possibleLoss.toFixed(0)),
-        gain: Number(possibleGain.toFixed(0)),
-        puregain: Number((possibleGain - possibleLoss).toFixed(0)),
+        cp: avgTrapEvaluation,
+        loss: possibleLoss,
+        gain: possibleGain,
+        puregain: possibleGain && Math.round(possibleGain - possibleLoss),
       });
     } catch (err) {
       console.error({ moveCandidate });
@@ -127,11 +148,11 @@ export async function evaluate(position: string) {
 
   evaluation.forEach((pv, index) =>
     console.log(
-      `info score ${pv.cp && !pv.mate ? `cp ${pv.cp}` : ""}${pv.mate ? `mate ${pv.mate}` : ""} pv ${pv.move} multipv ${
+      `info score ${!("mate" in pv) ? `cp ${pv.cp}` : ""}${pv.mate ? `mate ${pv.mate}` : ""} pv ${pv.move} multipv ${
         index + 1
       } string sfpv ${sfInitialEval.findIndex((candidate) => candidate.move === pv.move) + 1} loss ${
-        pv?.loss || "-"
-      } gain ${pv?.gain || "-"} puregain ${pv?.puregain || "-"}`
+        pv?.loss ?? "-"
+      } gain ${pv?.gain ?? "-"} puregain ${pv?.puregain ?? "-"}`
     )
   );
 

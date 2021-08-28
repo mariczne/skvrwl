@@ -108,7 +108,7 @@ export function AuxiliaryEngine(name: string, options?: EngineOptions) {
 
 const COMMON_UCI = { MultiPV: 500 };
 
-export const stockfish = Engine("stockfish", { uci: { ...COMMON_UCI, Threads: 4 } });
+export const stockfish = Engine("stockfish", { uci: { ...COMMON_UCI, Threads: 8, } });
 export const maia = AuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
@@ -116,5 +116,6 @@ export const maia = AuxiliaryEngine("lc0", {
     // WeightsFile: path.resolve("../../maia-chess/maia_weights/maia-1200.pb.gz"),
     WeightsFile: path.resolve("/home/marcin/Downloads/chess/maia-chess/maia_weights/maia-1200.pb.gz"),
     VerboseMoveStats: true,
+    Backend: "eigen",
   },
 });

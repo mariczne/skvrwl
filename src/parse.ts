@@ -1,26 +1,29 @@
 type MoveScore = {
   move: string;
+  multipv: number;
   cp: number;
   mate?: number;
 };
 
 export function parseScoreLine(line: string): MoveScore | null {
-  const matches = line.match(/^.+score (?:cp|mate) (-?\d+).+pv ([a-z]\d[a-z]\d[a-z]?)/);
+  const matches = line.match(/^.+multipv (\d+) score (?:cp|mate) (-?\d+).+pv ([a-z]\d[a-z]\d[a-z]?)/);
 
   if (!matches) return null;
 
   if (matches[0].includes("mate")) {
-    const mateInMoves = Number(matches[1]);
+    const mateInMoves = Number(matches[2]);
     return {
-      move: matches[2],
+      move: matches[3],
+      multipv: Number(matches[1]),
       mate: mateInMoves,
       cp: 12800 * (mateInMoves > 0 ? 1 : -1),
     };
   }
 
   return {
-    move: matches[2],
-    cp: Number(matches[1]),
+    move: matches[3],
+    multipv: Number(matches[1]),
+    cp: Number(matches[2]),
   };
 }
 
@@ -35,13 +38,7 @@ export function parseScore(output: string, finalDepth: number) {
       return total;
     }, [] as MoveScore[]);
 
-  parsed.sort((a, b) => {
-    if ("mate" in a && !("mate" in b)) return -1;
-    if ("mate" in b && !("mate" in a)) return 1;
-    if (a.mate && b.mate) return a.mate > b.mate ? -1 : 1;
-    if ("cp" in a && "cp" in b) return a.cp > b.cp ? -1 : 1;
-    return 0;
-  });
+  parsed.sort((a, b) => (a.multipv < b.multipv ? -1 : 1));
 
   return parsed;
 }
