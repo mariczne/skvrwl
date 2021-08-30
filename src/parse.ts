@@ -1,9 +1,14 @@
-type MoveScore = {
-  move: string;
-  multipv: number;
-  cp: number;
-  mate?: number;
-};
+type MoveScore =
+  | {
+      move: string;
+      multipv: number;
+      cp: number;
+    }
+  | {
+      move: string;
+      multipv: number;
+      mate: number;
+    };
 
 export function parseScoreLine(line: string): MoveScore | null {
   const matches = line.match(/^.+multipv (\d+) score (?:cp|mate) (-?\d+).+pv ([a-z]\d[a-z]\d[a-z]?)/);
@@ -11,12 +16,10 @@ export function parseScoreLine(line: string): MoveScore | null {
   if (!matches) return null;
 
   if (matches[0].includes("mate")) {
-    const mateInMoves = Number(matches[2]);
     return {
       move: matches[3],
       multipv: Number(matches[1]),
-      mate: mateInMoves,
-      cp: 12800 * (mateInMoves > 0 ? 1 : -1),
+      mate: Number(matches[2]),
     };
   }
 
@@ -43,4 +46,4 @@ export function parseScore(output: string, finalDepth: number) {
   return parsed;
 }
 
-export function parseVMS(line: string) {}
+// export function parseVMS(line: string) {}

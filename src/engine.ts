@@ -108,7 +108,7 @@ export function AuxiliaryEngine(name: string, options?: EngineOptions) {
 
 const COMMON_UCI = { MultiPV: 500 };
 
-export const stockfish = Engine("stockfish", { uci: { ...COMMON_UCI, Threads: 8, } });
+export const stockfish = Engine("stockfish", { uci: { ...COMMON_UCI, Threads: 8, UCI_Chess960: true } });
 export const maia = AuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
