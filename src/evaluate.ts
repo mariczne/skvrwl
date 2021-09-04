@@ -1,6 +1,6 @@
 import { appendFile } from "fs/promises";
 import path from "path";
-import { maia, stockfish } from "./engine";
+import { maia1200, stockfish } from "./engine";
 import { shell } from "./main";
 import { Position } from "./utils";
 // import { getCurrentPOV, getScoreFromPOV } from "./utils";
@@ -27,16 +27,16 @@ export async function evaluate(position: string) {
   // const isAborted = createAborter();
 
   // if (isAborted()) return;
-  // [maia, stockfish].forEach((engine) => engine.send("ucinewgame"));
+  [maia1200, stockfish].forEach((engine) => engine.send("ucinewgame"));
 
-  const sfInitialEval = await stockfish.analyse(position, 8);
+  const initialEval = await stockfish.analyse(position, 8);
   // console.log("info debug", { sfInitialEval });
 
-  const safestMove = sfInitialEval[0];
+  const safestMove = initialEval[0];
 
   const evaluation = [];
 
-  for (const moveCandidate of sfInitialEval) {
+  for (const moveCandidate of initialEval) {
     try {
       if ("mate" in moveCandidate || "mate" in safestMove) {
         // forced mates
@@ -46,10 +46,10 @@ export async function evaluate(position: string) {
 
       const possibleLoss = safestMove.cp - moveCandidate.cp;
 
-      const possibleResponses = await maia.analyse(Position(position, moveCandidate.move));
+      const possibleResponses = await maia1200.analyse(Position(position, moveCandidate.move));
       if (!possibleResponses.length) continue;
 
-      let mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 33);
+      let mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 20);
       if (!mostPossibleResponses.length) mostPossibleResponses = [possibleResponses[0]]; // no responses above 15%
 
       let trapEvaluation = [];
