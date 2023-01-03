@@ -112,6 +112,7 @@ export const stockfish = Engine("stockfish", {
   uci: {
     ...COMMON_UCI,
     Threads: 8,
+    "Use NNUE": false
     // UCI_Chess960: true
   },
 });

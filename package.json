@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "main": "main.ts",
   "scripts": {
-    "start": "tsnd --inspect=4321 ./src/main.ts",
+    "start": "tsnd ./src/main.ts",
     "build": "rollup -c --configPlugin typescript"
   },
   "author": "mariczne",
