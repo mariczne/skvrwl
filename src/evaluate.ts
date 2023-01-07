@@ -3,6 +3,10 @@ import path from "path";
 import { maia1200, stockfish } from "./engine";
 import { Position } from "./utils";
 
+function roundToTwoDecimals(num: number) {
+  return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
 function convertCpToWinPctg(cp: number) {
   return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
 }
@@ -14,7 +18,7 @@ function convertCpToQ(cp: number) {
 }
 
 function convertQToCp(q: number) {
-  return 111.714640912 * Math.tan(1.5620688421 * q);
+  return roundToTwoDecimals(111.714640912 * Math.tan(1.5620688421 * q));
 }
 
 export async function evaluate(position: string) {
@@ -30,10 +34,11 @@ export async function evaluate(position: string) {
   }
 
   const evaluation = [];
+  const traps = [];
 
   const candidateMoves = initialEval.filter((move) => "cp" in move && safestMove.cp - move.cp < 250);
 
-  console.log({ candidateMoves });
+  // console.log({ candidateMoves });
 
   for (const moveCandidate of candidateMoves) {
     try {
@@ -48,7 +53,7 @@ export async function evaluate(position: string) {
       const possibleResponses = await maia1200.analyse(Position(position, moveCandidate.move));
       if (!possibleResponses.length) continue;
 
-      let mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 25);
+      let mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 10);
       if (!mostPossibleResponses.length) mostPossibleResponses = [possibleResponses[0]]; // no responses above threshold
 
       let trapEvaluation = [];
@@ -57,7 +62,7 @@ export async function evaluate(position: string) {
 
       mostPossibleResponses = mostPossibleResponses.map((response) => ({
         ...response,
-        policy: response.policy / policiesSum,
+        policy: roundToTwoDecimals(response.policy / policiesSum),
       }));
 
       for (const answer of mostPossibleResponses) {
@@ -67,12 +72,19 @@ export async function evaluate(position: string) {
         // const winpct = convertCpToWinPctg(answerEvalCp)
         const trapQ = answer.policy * convertCpToQ(answerEvalCp);
         const trapscore = convertQToCp(trapQ);
-        console.log(answer.move, { cp: answerEvalCp, policy: answer.policy, trapscore, trapQ });
+        // console.log(answer.move, { cp: answerEvalCp, policy: answer.policy, trapscore, trapQ });
 
         trapEvaluation.push({
           move: answer.move,
           cp: answerEvalCp,
           policy: answer.policy,
+          trapscore,
+        });
+
+        traps.push({
+          move: `${moveCandidate.move} ${answer.move}`,
+          policy: answer.policy,
+          cp: answerEvalCp,
           trapscore,
         });
       }
@@ -123,6 +135,13 @@ export async function evaluate(position: string) {
         ` string sfpv ${pv.multipv}`
       // + ` string trapscore ${pv.trapscore}`
     )
+  );
+
+  traps.sort((a, b) => (a.trapscore > b.trapscore ? -1 : 1));
+
+  console.log("best traps:");
+  traps.forEach((pv) =>
+    console.log(`info pv ${pv.move} trapscore ${pv.trapscore}` + ` cp ${pv.cp} policy ${pv.policy}`)
   );
 
   console.log(`bestmove ${evaluation[0].move}`);

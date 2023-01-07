@@ -1,4 +1,5 @@
 import { createInterface } from "readline";
+import { stockfish } from "./engine";
 import { evaluate } from "./evaluate";
 
 export const shell = createInterface({
@@ -10,7 +11,7 @@ export const shell = createInterface({
 async function main() {
   shell.prompt();
 
-  let position = "startpos";
+  let position = "startpos moves";
 
   shell
     .on("line", async (line) => {
@@ -21,8 +22,13 @@ async function main() {
         // process.stdout.write("readyok\n");
       } else if (line === "isready") {
         process.stdout.write("readyok\n");
+      } else if (line === "d") {
+        stockfish.send("d");
       } else if (line.startsWith("position")) {
         position = line.replace("position ", "");
+      } else if (line.startsWith("#")) {
+        position += line.replace("#", " ");
+        evaluate(position);
       } else if (line.startsWith("go")) {
         evaluate(position);
       } else if (line.startsWith("quit")) {
