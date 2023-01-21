@@ -1,6 +1,8 @@
 node_modules/
 bin/
+skurwiel
 
 *.log
+log.txt
 
 .DS_Store

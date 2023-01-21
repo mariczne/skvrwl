@@ -36,7 +36,7 @@ export async function evaluate(position: string) {
   const evaluation = [];
   const traps = [];
 
-  const candidateMoves = initialEval.filter((move) => "cp" in move && safestMove.cp - move.cp < 250);
+  const candidateMoves = initialEval.filter((move) => "cp" in move && safestMove.cp - move.cp < 350);
 
   // console.log({ candidateMoves });
 
@@ -48,7 +48,7 @@ export async function evaluate(position: string) {
         continue;
       }
 
-      // const possibleLoss = safestMove.cp - moveCandidate.cp;
+      const possibleLoss = safestMove.cp - moveCandidate.cp;
 
       const possibleResponses = await maia1200.analyse(Position(position, moveCandidate.move));
       if (!possibleResponses.length) continue;
@@ -70,6 +70,9 @@ export async function evaluate(position: string) {
         const FORCED_MATE_VALUE = 12800;
         const answerEvalCp = "cp" in answerEval[0] ? answerEval[0].cp : FORCED_MATE_VALUE;
         // const winpct = convertCpToWinPctg(answerEvalCp)
+        const possibleGain = answerEvalCp - safestMove.cp
+        // if (possibleGain < 0) continue
+
         const trapQ = answer.policy * convertCpToQ(answerEvalCp);
         const trapscore = convertQToCp(trapQ);
         // console.log(answer.move, { cp: answerEvalCp, policy: answer.policy, trapscore, trapQ });
@@ -79,13 +82,17 @@ export async function evaluate(position: string) {
           cp: answerEvalCp,
           policy: answer.policy,
           trapscore,
+
         });
 
         traps.push({
           move: `${moveCandidate.move} ${answer.move}`,
           policy: answer.policy,
           cp: answerEvalCp,
+          sfpv: moveCandidate.multipv,
           trapscore,
+          possibleGain,
+          possibleLoss
         });
       }
 
@@ -141,7 +148,7 @@ export async function evaluate(position: string) {
 
   console.log("best traps:");
   traps.forEach((pv) =>
-    console.log(`info pv ${pv.move} trapscore ${pv.trapscore}` + ` cp ${pv.cp} policy ${pv.policy}`)
+    console.log(`info pv ${pv.move} trapscore ${pv.trapscore}` + ` cp ${pv.cp} policy ${pv.policy} sfpv ${pv.sfpv} gain ${pv.possibleGain} loss ${pv.possibleLoss}`)
   );
 
   console.log(`bestmove ${evaluation[0].move}`);
