@@ -8,14 +8,16 @@ export async function evaluate(position: string): Promise<{ evaluation: Evaluati
 
   const initialEval = (await stockfish.analyse(position, 6)).map((moveScore) => ({
     ...moveScore,
-    q: "mate" in moveScore ? 1 : convertCpToQ(moveScore.cp),
+    q: "mate" in moveScore && moveScore.mate > 0 ? 1 : convertCpToQ(("cp" in moveScore && moveScore.cp) || 0),
   }));
 
   const safestMove = initialEval[0];
 
   let evaluation: Evaluation = [];
 
-  const candidateMoves = initialEval.filter((move) => safestMove.q - move.q < 0.5);
+  const candidateMoves = initialEval.filter((move) =>
+    "mate" in safestMove ? "mate" in move && move.mate > 0 : safestMove.q - move.q < 0.5
+  );
   const candidatesEvals = new Map<string, { response: string; q: number; cp: number; policy: number }[]>();
 
   for (const moveCandidate of candidateMoves) {
@@ -80,21 +82,14 @@ export async function evaluate(position: string): Promise<{ evaluation: Evaluati
   };
 }
 
-export type Evaluation = (
-  | {
-      move: string;
-      multipv: number;
-      q: number;
-    }
-  | {
-      move: string;
-      multipv: number;
-      q: 1;
-    }
-)[];
+export type Evaluation = {
+  move: string;
+  multipv: number;
+  q: number;
+}[];
 
 export function logResults(evaluation: Evaluation): void {
-  console.log(evaluation);
+  // console.log(evaluation);
 
   evaluation.forEach((pv, index) =>
     console.log(

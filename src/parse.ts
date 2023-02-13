@@ -1,4 +1,4 @@
-type MoveScore =
+export type MoveScore =
   | {
       move: string;
       multipv: number;
