@@ -1,12 +1,18 @@
 import { createInterface } from "readline";
-import { stockfish } from "./engine";
-import { evaluate } from "./evaluate";
+import { stockfish, maia1200 } from "./engine";
+import { evaluate, logResults } from "./evaluate";
 
 export const shell = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "",
 });
+
+function cleanExit() {
+  console.log("exiting...");
+  [stockfish, maia1200].forEach(engine => engine.engineProcess.kill())
+  process.exit(0);
+}
 
 async function main() {
   shell.prompt();
@@ -28,18 +34,20 @@ async function main() {
         position = line.replace("position ", "");
       } else if (line.startsWith("#")) {
         position += line.replace("#", " ");
-        evaluate(position);
+        const data = await evaluate(position);
+        logResults(data.evaluation, data.traps)
       } else if (line.startsWith("go")) {
-        evaluate(position);
+        const data = await evaluate(position);
+        logResults(data.evaluation, data.traps)
       } else if (line.startsWith("quit")) {
         process.exit(0);
       }
       shell.prompt();
     })
-    .on("close", () => {
-      console.log("exiting...");
-      process.exit(0);
-    });
+    .on("close", cleanExit)
 }
+
+process.on("SIGKILL", cleanExit)
+process.on("SIGTERM", cleanExit)
 
 main();

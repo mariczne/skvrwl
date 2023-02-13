@@ -1,48 +1,31 @@
 import { appendFile } from "fs/promises";
 import path from "path";
 import { maia1200, stockfish } from "./engine";
-import { Position } from "./utils";
+import { convertCpToQ, convertQToCp, Position, roundToTwoDecimals } from "./utils";
 
-function roundToTwoDecimals(num: number) {
-  return Math.round((num + Number.EPSILON) * 100) / 100;
-}
-
-function convertCpToWinPctg(cp: number) {
-  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
-}
-
-function convertCpToQ(cp: number) {
-  const winPctg = convertCpToWinPctg(cp);
-
-  return ((winPctg / 100) * 2) / 1 + -1;
-}
-
-function convertQToCp(q: number) {
-  return roundToTwoDecimals(111.714640912 * Math.tan(1.5620688421 * q));
-}
-
-export async function evaluate(position: string) {
+export async function evaluate(position: string): Promise<{ evaluation: Evaluation; traps: TrapsEval }> {
   [maia1200, stockfish].forEach((engine) => engine.send("ucinewgame"));
 
-  const initialEval = await stockfish.analyse(position, 6);
+  const initialEval = (await stockfish.analyse(position, 6)).map((moveScore) => ({
+    ...moveScore,
+    q: "mate" in moveScore ? 1 : convertCpToQ(moveScore.cp),
+  }));
 
   const safestMove = initialEval[0];
 
   if ("mate" in safestMove) {
-    console.log(`bestmove ${safestMove.move}`);
-    return;
+    return { evaluation: initialEval.filter((move) => "mate" in move), traps: [] };
   }
 
   const evaluation = [];
   const traps = [];
 
-  const candidateMoves = initialEval.filter((move) => "cp" in move && safestMove.cp - move.cp < 350);
-
-  // console.log({ candidateMoves });
+  const candidateMoves = initialEval.filter((move) => "cp" in move && safestMove.cp - move.cp < 600);
 
   for (const moveCandidate of candidateMoves) {
     try {
       // forced mates
+      // probably doesnt do anything
       if ("mate" in moveCandidate || "mate" in safestMove) {
         evaluation.push(moveCandidate);
         continue;
@@ -70,8 +53,9 @@ export async function evaluate(position: string) {
         const FORCED_MATE_VALUE = 12800;
         const answerEvalCp = "cp" in answerEval[0] ? answerEval[0].cp : FORCED_MATE_VALUE;
         // const winpct = convertCpToWinPctg(answerEvalCp)
-        const possibleGain = answerEvalCp - safestMove.cp
-        // if (possibleGain < 0) continue
+        const possibleGain = -safestMove.cp + answerEvalCp;
+        // console.log({i: mostPossibleResponses.findIndex(el => el.move === moveCandidate.move)})
+        if (possibleGain < 0 && mostPossibleResponses.findIndex((el) => el.move === moveCandidate.move) !== 0) continue;
 
         const trapQ = answer.policy * convertCpToQ(answerEvalCp);
         const trapscore = convertQToCp(trapQ);
@@ -82,7 +66,6 @@ export async function evaluate(position: string) {
           cp: answerEvalCp,
           policy: answer.policy,
           trapscore,
-
         });
 
         traps.push({
@@ -92,7 +75,7 @@ export async function evaluate(position: string) {
           sfpv: moveCandidate.multipv,
           trapscore,
           possibleGain,
-          possibleLoss
+          possibleLoss,
         });
       }
 
@@ -113,13 +96,15 @@ export async function evaluate(position: string) {
 
       evaluation.push({
         ...moveCandidate,
-        cp: bestTrapEvaluation,
+        // cp: bestTrapEvaluation,
       });
     } catch (err) {
       console.error({ moveCandidate });
-      appendFile(path.resolve("./errors.log"), `problem position: ${position}, move: ${moveCandidate.move}\n`);
+      appendFile(path.resolve("./errors.log"), `problem position: ${position}, move: ${moveCandidate?.move}\n`);
     }
   }
+
+  if (!evaluation.length) evaluation.push(candidateMoves[0]);
 
   evaluation.sort((a, b) => {
     if ("mate" in a && "mate" in b) return a.mate < b.mate ? -1 : 1;
@@ -133,22 +118,55 @@ export async function evaluate(position: string) {
     return 0;
   });
 
+  traps.sort((a, b) => (a.trapscore > b.trapscore ? -1 : 1));
+
+  return { evaluation, traps };
+}
+
+type Evaluation = (
+  | {
+      move: string;
+      multipv: number;
+      // cp: number;
+      q: number;
+    }
+  | {
+      move: string;
+      multipv: number;
+      // mate: number;
+      q: 1;
+    }
+)[];
+
+type TrapsEval = {
+  move: string;
+  policy: number;
+  cp: number;
+  // q: number;
+  sfpv: number;
+  trapscore: number;
+  possibleGain: number;
+  possibleLoss: number;
+}[];
+
+export function logResults(evaluation: Evaluation, traps: TrapsEval): void {
   evaluation.forEach((pv, index) =>
     console.log(
       "info score" +
-        (!("mate" in pv) ? ` cp ${pv.cp}` : "") +
+        (!("mate" in pv) ? ` q ${pv.q}` : "") +
         ("mate" in pv ? ` mate ${pv.mate}` : "") +
         ` pv ${pv.move} multipv ${index + 1}` +
         ` string sfpv ${pv.multipv}`
-      // + ` string trapscore ${pv.trapscore}`
     )
   );
 
-  traps.sort((a, b) => (a.trapscore > b.trapscore ? -1 : 1));
-
   console.log("best traps:");
+
   traps.forEach((pv) =>
-    console.log(`info pv ${pv.move} trapscore ${pv.trapscore}` + ` cp ${pv.cp} policy ${pv.policy} sfpv ${pv.sfpv} gain ${pv.possibleGain} loss ${pv.possibleLoss}`)
+    console.log(
+      `info pv ${pv.move} trapscore ${pv.trapscore}` +
+        ` cp ${pv.cp} policy ${pv.policy} sfpv ${pv.sfpv} gain ${pv.possibleGain} loss ${pv.possibleLoss}`
+    )
   );
 
   console.log(`bestmove ${evaluation[0].move}`);
