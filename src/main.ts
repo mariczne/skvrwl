@@ -35,10 +35,10 @@ async function main() {
       } else if (line.startsWith("#")) {
         position += line.replace("#", " ");
         const data = await evaluate(position);
-        logResults(data.evaluation, data.traps)
+        logResults(data.evaluation)
       } else if (line.startsWith("go")) {
         const data = await evaluate(position);
-        logResults(data.evaluation, data.traps)
+        logResults(data.evaluation)
       } else if (line.startsWith("quit")) {
         process.exit(0);
       }
@@ -47,7 +47,7 @@ async function main() {
     .on("close", cleanExit)
 }
 
-process.on("SIGKILL", cleanExit)
-process.on("SIGTERM", cleanExit)
+// process.on("SIGKILL", cleanExit)
+// process.on("SIGTERM", cleanExit)
 
 main();

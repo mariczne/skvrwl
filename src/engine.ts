@@ -18,9 +18,10 @@ export function Engine(name: string, options?: EngineOptions) {
   //   console.error(`\n${engineProcess.spawnfile} stderr: ${data}`);
   // });
 
-  engineProcess.on("close", (code) => {
-    console.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
-  });
+  // Disabled because jest is stupid
+  // engineProcess.on("close", (code) => {
+  //   console.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
+  // });
 
   const send = (command: string) => {
     engineProcess.stdin.write(`${command}\n`);
