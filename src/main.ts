@@ -35,10 +35,10 @@ async function main() {
       } else if (line.startsWith("#")) {
         position += line.replace("#", " ");
         const data = await evaluate(position);
-        logResults(data.evaluation)
+        if (data.evaluation?.length) logResults(data.evaluation)
       } else if (line.startsWith("go")) {
         const data = await evaluate(position);
-        logResults(data.evaluation)
+        if (data.evaluation?.length) logResults(data.evaluation)
       } else if (line.startsWith("quit")) {
         process.exit(0);
       }

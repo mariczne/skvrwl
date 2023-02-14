@@ -3,17 +3,21 @@ import path from "path";
 import { maia1200, stockfish } from "./engine";
 import { convertCpToQ, convertQToCp, Position, roundToTwoDecimals } from "./utils";
 
-export async function evaluate(position: string): Promise<{ evaluation: Evaluation }> {
+export async function evaluate(position: string) {
   [maia1200, stockfish].forEach((engine) => engine.send("ucinewgame"));
 
   const initialEval = (await stockfish.analyse(position, 6)).map((moveScore) => ({
     ...moveScore,
-    q: "mate" in moveScore && moveScore.mate > 0 ? 1 : convertCpToQ(("cp" in moveScore && moveScore.cp) || 0),
+    q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
   }));
+
+  console.log(initialEval);
+
+  if (!initialEval.length) return { evaluation: [] };
 
   const safestMove = initialEval[0];
 
-  let evaluation: Evaluation = [];
+  let evaluation = [];
 
   const candidateMoves = initialEval.filter((move) =>
     "mate" in safestMove ? "mate" in move && move.mate > 0 : safestMove.q - move.q < 0.5
@@ -25,7 +29,10 @@ export async function evaluate(position: string): Promise<{ evaluation: Evaluati
 
     try {
       const possibleResponses = await maia1200.analyse(Position(position, moveCandidate.move));
-      if (!possibleResponses.length) continue;
+      if (!possibleResponses.length) {
+        if ("mate" in moveCandidate) evaluation.push(moveCandidate);
+        continue;
+      }
 
       let mostPossibleResponses = possibleResponses.filter((response) => response.policy >= 10);
       if (!mostPossibleResponses.length) mostPossibleResponses = [possibleResponses[0]]; // no responses above threshold
@@ -34,14 +41,14 @@ export async function evaluate(position: string): Promise<{ evaluation: Evaluati
 
       mostPossibleResponses = mostPossibleResponses.map((response) => ({
         ...response,
-        policy: roundToTwoDecimals(response.policy / policiesSum),
+        policy: response.policy / policiesSum,
       }));
 
       for (const answer of mostPossibleResponses) {
         const answerEval = (await stockfish.analyse(Position(position, moveCandidate.move, answer.move), 6)).map(
           (moveScore) => ({
             ...moveScore,
-            q: "mate" in moveScore ? 1 : convertCpToQ(moveScore.cp),
+            q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
           })
         );
 
@@ -60,15 +67,29 @@ export async function evaluate(position: string): Promise<{ evaluation: Evaluati
     }
   }
 
-  if (!evaluation.length) evaluation.push(candidateMoves[0]);
+  if (!candidateMoves.length) evaluation.push(initialEval[0]);
 
   for (const [move, answers] of candidatesEvals.entries()) {
     if (!answers.length) continue;
-    const trapEval = answers.reduce((prev, curr) => prev + curr.q * curr.policy, 0);
+
+    const policiesSum = answers.reduce((prev, curr) => prev + curr.policy, 0);
+    const trapEval = answers.reduce((prev, curr) => prev + curr.q * (curr.policy / policiesSum), 0);
+    console.log(move, answers, trapEval);
+
+    const initialMoveEval = initialEval.find((moveScore) => moveScore.move === move)!;
+
+    if ("mate" in initialMoveEval) {
+      evaluation.push({
+        move,
+        multipv: initialMoveEval.multipv,
+        q: convertCpToQ(initialMoveEval.mate > 0 ? 12800 : -12800),
+        mate: initialMoveEval.mate,
+      });
+    }
 
     evaluation.push({
       move,
-      multipv: initialEval.find((moveScore) => moveScore.move === move)!.multipv,
+      multipv: initialMoveEval.multipv,
       q: trapEval,
     });
   }
@@ -89,8 +110,6 @@ export type Evaluation = {
 }[];
 
 export function logResults(evaluation: Evaluation): void {
-  // console.log(evaluation);
-
   evaluation.forEach((pv, index) =>
     console.log(
       "info score" +
