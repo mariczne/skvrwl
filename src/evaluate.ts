@@ -9,10 +9,15 @@ export async function analyse(position: string, depth: number) {
     q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
   }));
 
+  const bestMove = initialEval[0];
+  const candidateMoves = initialEval.filter((move) =>
+    "mate" in bestMove ? "mate" in move && move.mate > 0 : bestMove.q - move.q < 0.2
+  );
+
   const deepEval = [];
 
-  for (const moveScore of initialEval) {
-    const q = await minimax(`${position} ${moveScore.move}`, depth - 1, true, moveScore.q);
+  for (const moveScore of candidateMoves) {
+    const q = await expectimax(Position(position, moveScore.move), depth - 1, NodeType.Chance, moveScore.q);
     deepEval.push({ ...moveScore, q });
   }
 
@@ -23,90 +28,183 @@ export async function analyse(position: string, depth: number) {
   return { evaluation: deepEval };
 }
 
-// function minimax(node, depth, maximizingPlayer) is
-//     if depth = 0 or node is a terminal node then
-//         return the heuristic value of node
-//     if maximizingPlayer then
-//         value := −∞
-//         for each child of node do
-//             value := max(value, minimax(child, depth − 1, FALSE))
-//         return value
-//     else (* minimizing player *)
-//         value := +∞
-//         for each child of node do
-//             value := min(value, minimax(child, depth − 1, TRUE))
-//         return value
+enum NodeType {
+  Max,
+  Chance,
+}
 
-async function minimax(position: string, depth: number, ownTurn: boolean, previousQ: number): Promise<number> {
-  const initialEval = (await stockfish.analyse(position, 1)).map((moveScore) => ({
+async function expectimax(position: string, depth: number, nodeType: NodeType, previousQ: number) {
+  // console.log(position, depth);
+
+  const positionEval = (await stockfish.analyse(position, 1)).map((moveScore) => ({
     ...moveScore,
     q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
   }));
 
-  console.log(previousQ);
-
-  if (initialEval.length === 0) {
-    console.log("Terminal node" + position);
+  if (positionEval.length === 0) {
+    console.log("Terminal node " + position);
     return previousQ;
   }
 
-  //     if depth = 0 or node is a terminal node then
-  //         return the heuristic value of node
+  const bestMove = positionEval[0];
+
   if (depth === 0) {
-    const bestMove = initialEval[0];
-    return convertCpToQ("mate" in bestMove ? (bestMove.mate > 0 ? 12800 : -12800) : bestMove.cp);
+    return "mate" in bestMove ? (bestMove.mate > 0 ? 1 : -1) : bestMove.q;
+    // return convertCpToQ("mate" in bestMove ? (bestMove.mate > 0 ? 12800 : -12800) : bestMove.cp);
   }
 
-  if (ownTurn) {
-    let value = Number.NEGATIVE_INFINITY;
+  switch (nodeType) {
+    case NodeType.Max: {
+      let value = Number.NEGATIVE_INFINITY;
 
-    const safestMove = initialEval[0];
+      const candidateMoves = positionEval.filter((move) =>
+        "mate" in bestMove ? "mate" in move && move.mate > 0 : bestMove.q - move.q < 0.2
+      );
 
-    const candidateMoves = initialEval.filter((move) =>
-      "mate" in safestMove ? "mate" in move && move.mate > 0 : safestMove.q - move.q < 0.25
-    );
+      for (const moveScore of candidateMoves) {
+        value = Math.max(
+          value,
+          await expectimax(Position(position, moveScore.move), depth - 1, NodeType.Chance, bestMove.q)
+        );
+      }
 
-    for (const moveScore of candidateMoves) {
-      value = Math.max(value, await minimax(`${position} ${moveScore.move}`, depth - 1, false, previousQ));
+      return value;
     }
+    case NodeType.Chance: {
+      const probabilities = await maia1200.analyse(position);
+      const possibleResponses = probabilities.filter((move) => {
+        return move.policy > 15;
+      });
 
-    return value;
-  } else {
-    let value = Number.NEGATIVE_INFINITY;
-    const possibleResponses = await maia1200.analyse(position);
+      if (!possibleResponses.length) return previousQ;
 
-    const candidateMoves = possibleResponses.filter((move) => move.policy > 0.1);
+      let value = 0;
 
-    // const candidatesEvals = new Map<string, { response: string; q: number; cp: number; policy: number }[]>();
-    const candidatesEvals = new Map<string, { response: string; q: number; cp: number; policy: number }[]>();
+      const policiesSum = possibleResponses.reduce((prev, curr) => prev + curr.policy, 0);
 
-    for (const moveCandidate of candidateMoves) {
-      candidatesEvals.set(moveCandidate.move, []);
-      const answerEval = (await stockfish.analyse(Position(position, moveCandidate.move), 1)).map((moveScore) => ({
-        ...moveScore,
-        q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
+      const candidateMoves = possibleResponses.map((response) => ({
+        ...response,
+        policy: response.policy / policiesSum,
       }));
-      const answerEvalQ = answerEval[0].q;
 
-      candidatesEvals.set(moveCandidate.move, [
-        ...candidatesEvals.get(moveCandidate.move)!,
-        { response: moveCandidate.move, policy: moveCandidate.policy, q: answerEvalQ, cp: convertQToCp(answerEvalQ) },
-      ]);
+      // console.log(candidateMoves, policiesSum, possibleResponses);
+
+      for (const moveScore of candidateMoves) {
+        value +=
+          moveScore.policy *
+          (await expectimax(Position(position, moveScore.move), depth - 1, NodeType.Max, bestMove.q));
+        // if (position.includes("f8c5  c2c3")) {
+        //   console.log("node type max position " + position + " value " + value);
+        // }
+      }
+
+      // console.log("node type chance position " + position + " value " + value);
+
+      return value;
+
+      // return (
+      //   candidateMoves
+      //     .map((moveScore) => ({
+      //       ...moveScore,
+      //       policy: moveScore.policy / policiesSum,
+      //     }))
+      //     .reduce((total, moveScore) => total + moveScore.policy, 0) / candidateMoves.length
+      // );
     }
-
-    if (!candidatesEvals.size) return previousQ;
-
-    for (const [move, answers] of candidatesEvals.entries()) {
-      if (!answers.length) continue;
-
-      const policiesSum = answers.reduce((prev, curr) => prev + curr.policy, 0);
-      const trapEval = answers.reduce((prev, curr) => prev + curr.q * (curr.policy / policiesSum), 0);
-      value = Math.max(trapEval, await minimax(`${position} ${move}`, depth - 1, true, previousQ));
-    }
-
-    return value;
   }
 }
+
+// async function expectiminimax(
+//   position: string,
+//   depth: number,
+//   turn: "own" | "opponent" | "random",
+//   previousQ: number
+// ): Promise<number> {
+//   console.log(position, depth);
+
+//   const initialEval = (await stockfish.analyse(position, 1)).map((moveScore) => ({
+//     ...moveScore,
+//     q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
+//   }));
+
+//   // console.log(previousQ);
+
+//   if (initialEval.length === 0) {
+//     console.log("Terminal node" + position);
+//     return previousQ;
+//   }
+
+//   //     if depth = 0 or node is a terminal node then
+//   //         return the heuristic value of node
+//   if (depth === 0) {
+//     const bestMove = initialEval[0];
+//     return convertCpToQ("mate" in bestMove ? (bestMove.mate > 0 ? 12800 : -12800) : bestMove.cp);
+//   }
+
+//   if (turn === "own") {
+//     let value = Number.NEGATIVE_INFINITY;
+
+//     const safestMove = initialEval[0];
+
+//     const candidateMoves = initialEval.filter((move) =>
+//       "mate" in safestMove ? "mate" in move && move.mate > 0 : safestMove.q - move.q < 0.25
+//     );
+
+//     for (const moveScore of candidateMoves) {
+//       value = Math.max(value, await expectiminimax(`${position} ${moveScore.move}`, depth - 1, "random", previousQ));
+//     }
+
+//     return value;
+//   } else if (turn === "opponent") {
+//     let value = Number.POSITIVE_INFINITY;
+//     // const possibleResponses = await maia1200.analyse(position);
+
+//     // const candidateMoves = possibleResponses.filter((move) => move.policy > 0.1);
+
+//     // // const candidatesEvals = new Map<string, { response: string; q: number; cp: number; policy: number }[]>();
+//     // const candidatesEvals = new Map<string, { response: string; q: number; cp: number; policy: number }[]>();
+
+//     // for (const moveCandidate of candidateMoves) {
+//     //   candidatesEvals.set(moveCandidate.move, []);
+//     //   const answerEval = (await stockfish.analyse(Position(position, moveCandidate.move), 1)).map((moveScore) => ({
+//     //     ...moveScore,
+//     //     q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
+//     //   }));
+//     //   const answerEvalQ = answerEval[0].q;
+
+//     //   candidatesEvals.set(moveCandidate.move, [
+//     //     ...candidatesEvals.get(moveCandidate.move)!,
+//     //     { response: moveCandidate.move, policy: moveCandidate.policy, q: answerEvalQ, cp: convertQToCp(answerEvalQ) },
+//     //   ]);
+//     // }
+
+//     // if (!candidatesEvals.size) return previousQ;
+
+//     for (const moveScore of initialEval) {
+//       value = Math.min(value, await expectiminimax(`${position} ${moveScore.move}`, depth - 1, "own", previousQ));
+//     }
+
+//     return value;
+//   } else  {
+//     let value = 0;
+//     const possibleResponses = (await maia1200.analyse(position)).filter((move) => move.policy > 0.1);
+
+//     const policiesSum = possibleResponses.reduce((prev, curr) => prev + curr.policy, 0);
+
+//     const candidateMoves = possibleResponses.map((response) => ({
+//       ...response,
+//       policy: response.policy / policiesSum,
+//     }));
+
+//     for (const moveScore of candidateMoves) {
+//       value =
+//         value +
+//         moveScore.policy * (await expectiminimax(`${position} ${moveScore.move}`, depth - 1, "opponent", previousQ));
+//     }
+
+//     return value;
+//   }
+// }
 
 export async function evaluate(position: string) {
   [maia1200, stockfish].forEach((engine) => engine.send("ucinewgame"));

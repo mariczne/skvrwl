@@ -34,10 +34,10 @@ async function main() {
         position = line.replace("position ", "");
       } else if (line.startsWith("#")) {
         position += line.replace("#", " ");
-        const data = await analyse(position, 3);
+        const data = await analyse(position, 4);
         if (data.evaluation?.length) logResults(data.evaluation)
       } else if (line.startsWith("go")) {
-        const data = await analyse(position, 3);
+        const data = await analyse(position, 4);
         if (data.evaluation?.length) logResults(data.evaluation)
       } else if (line.startsWith("quit")) {
         process.exit(0);
