@@ -1,6 +1,6 @@
 import { createInterface } from "readline";
 import { stockfish, maia1200 } from "./engine";
-import { evaluate, logResults } from "./evaluate";
+import { analyse, evaluate, logResults } from "./evaluate";
 
 export const shell = createInterface({
   input: process.stdin,
@@ -34,10 +34,10 @@ async function main() {
         position = line.replace("position ", "");
       } else if (line.startsWith("#")) {
         position += line.replace("#", " ");
-        const data = await evaluate(position);
+        const data = await analyse(position, 3);
         if (data.evaluation?.length) logResults(data.evaluation)
       } else if (line.startsWith("go")) {
-        const data = await evaluate(position);
+        const data = await analyse(position, 3);
         if (data.evaluation?.length) logResults(data.evaluation)
       } else if (line.startsWith("quit")) {
         process.exit(0);
