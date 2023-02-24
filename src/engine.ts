@@ -113,8 +113,6 @@ export const stockfish = Engine("stockfish", {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
-    // "Use NNUE": false,
-    // UCI_Chess960: true
   },
 });
 
@@ -122,20 +120,8 @@ export const maia1200 = AuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
-    // WeightsFile: path.resolve("../../maia-chess/maia_weights/maia-1200.pb.gz"),
     WeightsFile: path.resolve(".", "weights", "maia-1200.pb.gz"),
     VerboseMoveStats: true,
-    Backend: "eigen",
+    // Backend: "eigen",
   },
 });
-
-// export const maia1600 = AuxiliaryEngine("lc0", {
-//   uci: {
-//     ...COMMON_UCI,
-//     Threads: 2,
-//     // WeightsFile: path.resolve("../../maia-chess/maia_weights/maia-1200.pb.gz"),
-//     WeightsFile: path.resolve("/home/marcin/Downloads/chess/maia-chess/maia_weights/maia-1600.pb.gz"),
-//     VerboseMoveStats: true,
-//     Backend: "eigen",
-//   },
-// });

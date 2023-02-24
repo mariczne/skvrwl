@@ -4,6 +4,10 @@ import { maia1200, stockfish } from "./engine";
 import { convertCpToQ, convertQToCp, Position, roundToTwoDecimals } from "./utils";
 
 export async function analyse(position: string, depth: number) {
+  const tree = new Map();
+
+  let depthLeft = depth;
+
   const initialEval = (await stockfish.analyse(position, 1)).map((moveScore) => ({
     ...moveScore,
     q: convertCpToQ("mate" in moveScore ? (moveScore.mate > 0 ? 12800 : -12800) : moveScore.cp),
@@ -14,16 +18,41 @@ export async function analyse(position: string, depth: number) {
     "mate" in bestMove ? "mate" in move && move.mate > 0 : bestMove.q - move.q < 0.2
   );
 
-  const deepEval = [];
+  let deepEval: any[] = [];
 
-  for (const moveScore of candidateMoves) {
-    const q = await expectimax(Position(position, moveScore.move), depth - 1, NodeType.Chance, moveScore.q);
-    deepEval.push({ ...moveScore, q });
+  while (depthLeft > 0) {
+    for (const moveScore of candidateMoves) {
+      const q = await expectimax(Position(position, moveScore.move), depthLeft - 1, NodeType.Chance, moveScore.q, tree);
+      deepEval.push({ ...moveScore, q });
+    }
+
+    deepEval.sort((a, b) => {
+      return a.q > b.q ? -1 : 1;
+    });
+
+    logResults(deepEval, depth - depthLeft);
+
+    deepEval = []
+    depthLeft--;
   }
 
-  deepEval.sort((a, b) => {
-    return a.q > b.q ? -1 : 1;
-  });
+  // if (depth % 2 !== 0) {
+  //   deepEval.map(moveScore => )
+  // }
+
+  // console.log(
+  //   [...tree.entries()].sort(([aKey, aVal], [bKey, bVal]) => {
+  //     if (aKey.length - bKey.length !== 0) {
+  //       return aKey.length - bKey.length ? -1 : 1;
+  //     } else {
+  //       if ("prob" in aVal) {
+  //         return aVal.prob - bVal.prob ? -1 : 1;
+  //       } else {
+  //         return aVal.q - bVal.q ? -1 : 1;
+  //       }
+  //     }
+  //   }).map(el => `${el[0]} ${el[1].q && " q " + el[1].q}${el[1].prob && " prob " + el[1].prob}`)
+  // );
 
   return { evaluation: deepEval };
 }
@@ -33,7 +62,7 @@ enum NodeType {
   Chance,
 }
 
-async function expectimax(position: string, depth: number, nodeType: NodeType, previousQ: number) {
+async function expectimax(position: string, depth: number, nodeType: NodeType, previousQ: number, tree: Map<any, any>) {
   // console.log(position, depth);
 
   const positionEval = (await stockfish.analyse(position, 1)).map((moveScore) => ({
@@ -62,10 +91,11 @@ async function expectimax(position: string, depth: number, nodeType: NodeType, p
       );
 
       for (const moveScore of candidateMoves) {
-        value = Math.max(
-          value,
-          await expectimax(Position(position, moveScore.move), depth - 1, NodeType.Chance, bestMove.q)
-        );
+        const positionMove = Position(position, moveScore.move);
+        if (tree.has(positionMove)) return tree.get(positionMove);
+
+        value = Math.max(value, await expectimax(positionMove, depth - 1, NodeType.Chance, bestMove.q, tree));
+        tree.set(positionMove, { q: value });
       }
 
       return value;
@@ -90,12 +120,18 @@ async function expectimax(position: string, depth: number, nodeType: NodeType, p
       // console.log(candidateMoves, policiesSum, possibleResponses);
 
       for (const moveScore of candidateMoves) {
+        const positionMove = Position(position, moveScore.move);
+        if (tree.has(positionMove)) return tree.get(positionMove);
+
         value +=
           moveScore.policy *
-          (await expectimax(Position(position, moveScore.move), depth - 1, NodeType.Max, bestMove.q));
+          (await expectimax(positionMove, depth - 1, NodeType.Max, bestMove.q, tree));
         // if (position.includes("f8c5  c2c3")) {
         //   console.log("node type max position " + position + " value " + value);
         // }
+        // console.log(depth === 0 && nodeType === NodeType.Chance);
+
+        tree.set(positionMove, { prob: moveScore.policy });
       }
 
       // console.log("node type chance position " + position + " value " + value);
@@ -313,13 +349,13 @@ export type Evaluation = {
   q: number;
 }[];
 
-export function logResults(evaluation: Evaluation): void {
+export function logResults(evaluation: Evaluation, depth: number): void {
   evaluation.forEach((pv, index) =>
     console.log(
       "info score" +
         (!("mate" in pv) ? ` cp ${convertQToCp(pv.q)} q ${roundToTwoDecimals(pv.q)}` : "") +
         ("mate" in pv ? ` mate ${pv.mate}` : "") +
-        ` pv ${pv.move} multipv ${index + 1}` +
+        ` pv ${pv.move} multipv ${index + 1} depth ${depth}` +
         ` string sfpv ${pv.multipv}`
     )
   );

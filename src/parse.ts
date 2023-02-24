@@ -1,14 +1,12 @@
-export type MoveScore =
-  | {
-      move: string;
-      multipv: number;
-      cp: number;
-    }
-  | {
-      move: string;
-      multipv: number;
-      mate: number;
-    };
+type PV = {
+  move: string;
+  multipv: number;
+};
+
+type CpScorePV = PV & { cp: number };
+type MateScorePV = PV & { mate: number };
+
+export type MoveScore = CpScorePV | MateScorePV;
 
 export function parseScoreLine(line: string): MoveScore | null {
   const matches = line.match(/^.+multipv (\d+) score (?:cp|mate) (-?\d+).+pv ([a-z]\d[a-z]\d[a-z]?)/);

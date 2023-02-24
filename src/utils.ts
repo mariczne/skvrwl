@@ -2,7 +2,7 @@ export function Position(fen: string, ...moves: string[]) {
   let newPosition = fen;
   if (moves && !fen.includes("moves")) newPosition += " moves";
   for (const move of moves) {
-    newPosition += ` ${move} `;
+    newPosition += ` ${move}`;
   }
   return newPosition;
 }
