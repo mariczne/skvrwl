@@ -1,6 +1,6 @@
 import { createInterface } from "readline";
 import { stockfish, maia1200 } from "./engine";
-import { analyse, evaluate, logResults } from "./evaluate";
+import { analyse, logResults } from "./evaluate";
 
 export const shell = createInterface({
   input: process.stdin,

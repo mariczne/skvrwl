@@ -43,5 +43,3 @@ export function parseScore(output: string, finalDepth: number) {
 
   return parsed;
 }
-
-// export function parseVMS(line: string) {}

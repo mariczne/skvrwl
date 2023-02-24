@@ -7,7 +7,7 @@ export type EngineOptions = Partial<{
   uci: Record<string, string | number | boolean>;
 }>;
 
-export function Engine(name: string, options?: EngineOptions) {
+export function createEngine(name: string, options?: EngineOptions) {
   const engineProcess = spawn(name, options?.arguments);
 
   // engineProcess.stdout.on("data", (data) => {
@@ -65,8 +65,8 @@ export function Engine(name: string, options?: EngineOptions) {
   };
 }
 
-export function AuxiliaryEngine(name: string, options?: EngineOptions) {
-  const engine = Engine(name, options);
+export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
+  const engine = createEngine(name, options);
 
   const analyse = (position: string): Promise<{ move: string; policy: number }[]> => {
     return new Promise((resolve, _reject) => {
@@ -109,14 +109,14 @@ export function AuxiliaryEngine(name: string, options?: EngineOptions) {
 
 const COMMON_UCI = { MultiPV: 500 };
 
-export const stockfish = Engine("stockfish", {
+export const stockfish = createEngine("stockfish", {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
   },
 });
 
-export const maia1200 = AuxiliaryEngine("lc0", {
+export const maia1200 = createAuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
