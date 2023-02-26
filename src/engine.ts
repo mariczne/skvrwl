@@ -1,27 +1,33 @@
 import { spawn } from "child_process";
 import path from "path";
-import { parseScore } from "./parse";
+import { parsePolicy, parseScore } from "./parse";
 
 export type EngineOptions = Partial<{
   arguments: string[];
   uci: Record<string, string | number | boolean>;
+  debug: ["stdout"?, "stderr"?];
 }>;
 
 export function createEngine(name: string, options?: EngineOptions) {
   const engineProcess = spawn(name, options?.arguments);
 
-  // engineProcess.stdout.on("data", (data) => {
-  //   console.log(`\n${engineProcess.spawnfile} stdout: ${data}`);
-  // });
+  if (process.env.NODE_ENV !== "test") {
+    if (options?.debug?.includes("stdout")) {
+      engineProcess.stdout.on("data", (data) => {
+        console.log(`\n${engineProcess.spawnfile} stdout: ${data}`);
+      });
+    }
 
-  // engineProcess.stderr.on("data", (data) => {
-  //   console.error(`\n${engineProcess.spawnfile} stderr: ${data}`);
-  // });
+    if (options?.debug?.includes("stderr")) {
+      engineProcess.stderr.on("data", (data) => {
+        console.error(`\n${engineProcess.spawnfile} stderr: ${data}`);
+      });
+    }
 
-  // Disabled because jest is stupid
-  // engineProcess.on("close", (code) => {
-  //   console.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
-  // });
+    engineProcess.on("close", (code) => {
+      console.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
+    });
+  }
 
   const send = (command: string) => {
     engineProcess.stdin.write(`${command}\n`);
@@ -78,21 +84,7 @@ export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
         if (String(chunk).includes("bestmove")) {
           engine.engineProcess.stdout.off("data", listener);
 
-          const lines = output.split("\n");
-
-          const parsed = lines
-            .filter((line) => line.startsWith("info string") && !line.startsWith("info string node"))
-            .map((line) => {
-              const matches = line.match(/^info string ([a-z]\d[a-z]\d[a-z]?).+P: ( ?\d?\d?\d.\d\d?)/);
-              if (!matches) return null;
-              return {
-                move: matches[1],
-                policy: Number(matches[2]),
-              };
-            })
-            .filter((element): element is { move: string; policy: number } => !!element)
-            .sort((a, b) => (a.policy > b.policy ? -1 : 1));
-
+          const parsed = parsePolicy(output);
           resolve(parsed);
         }
       };
@@ -109,19 +101,24 @@ export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
 
 const COMMON_UCI = { MultiPV: 500 };
 
-export const stockfish = createEngine("stockfish", {
+export const engineA = createEngine("stockfish", {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
   },
+  debug: ["stdout", "stderr"],
 });
 
-export const maia1200 = createAuxiliaryEngine("lc0", {
+export const engineB = createAuxiliaryEngine("lc0", {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
     WeightsFile: path.resolve(".", "weights", "maia-1200.pb.gz"),
     VerboseMoveStats: true,
-    // Backend: "eigen",
   },
 });
+
+export function cleanExit() {
+  [engineA, engineB].forEach((engine) => engine.engineProcess.kill());
+  process.exit(0);
+}

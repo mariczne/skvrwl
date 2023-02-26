@@ -1,5 +1,7 @@
 node_modules/
 bin/
+weights/*.pb.gz
+
 skurwiel
 
 *.log

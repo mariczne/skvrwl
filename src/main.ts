@@ -1,53 +1,51 @@
 import { createInterface } from "readline";
-import { stockfish, maia1200 } from "./engine";
-import { analyse, logResults } from "./evaluate";
+import { cleanExit } from "./engine";
+import { analyse, printResults } from "./evaluate";
+import { getValidCommand } from "./uci";
+import { writeLine } from "./utils";
 
-export const shell = createInterface({
+const shell = createInterface({
   input: process.stdin,
   output: process.stdout,
   prompt: "",
 });
 
-function cleanExit() {
-  console.log("exiting...");
-  [stockfish, maia1200].forEach(engine => engine.engineProcess.kill())
-  process.exit(0);
-}
+shell.on("close", cleanExit);
 
 async function main() {
   shell.prompt();
 
   let position = "startpos moves";
 
-  shell
-    .on("line", async (line) => {
-      if (line === "uci") {
-        process.stdout.write("id name skurwiel\n");
-        process.stdout.write("id author mariczne\n");
-        process.stdout.write("uciok\n");
-        // process.stdout.write("readyok\n");
-      } else if (line === "isready") {
-        process.stdout.write("readyok\n");
-      } else if (line === "d") {
-        stockfish.send("d");
-      } else if (line.startsWith("position")) {
-        position = line.replace("position ", "");
-      } else if (line.startsWith("#")) {
-        position += line.replace("#", " ");
-        const data = await analyse(position, 6);
-        if (data.evaluation?.length) logResults(data.evaluation, 6)
-      } else if (line.startsWith("go")) {
-        const data = await analyse(position, 6);
-        if (data.evaluation?.length) logResults(data.evaluation, 6)
-      } else if (line.startsWith("quit")) {
-        process.exit(0);
-      }
-      shell.prompt();
-    })
-    .on("close", cleanExit)
-}
+  for await (const line of shell) {
+    const command = getValidCommand(line);
 
-// process.on("SIGKILL", cleanExit)
-// process.on("SIGTERM", cleanExit)
+    switch (command) {
+      case "uci": {
+        writeLine("id name skurwiel");
+        writeLine("id author mariczne");
+        writeLine("uciok");
+        break;
+      }
+      case "isready": {
+        writeLine("readyok");
+        break;
+      }
+      case "position": {
+        position = line.replace("position ", "");
+        break;
+      }
+      case "go": {
+        const { evaluation } = await analyse(position, 3);
+        printResults(evaluation, true);
+        break;
+      }
+      case "quit": {
+        cleanExit();
+      }
+      default: // do nothing
+    }
+  }
+}
 
 main();

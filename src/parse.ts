@@ -3,8 +3,8 @@ type PV = {
   multipv: number;
 };
 
-type CpScorePV = PV & { cp: number };
-type MateScorePV = PV & { mate: number };
+export type CpScorePV = PV & { cp: number };
+export type MateScorePV = PV & { mate: number };
 
 export type MoveScore = CpScorePV | MateScorePV;
 
@@ -40,6 +40,25 @@ export function parseScore(output: string, finalDepth: number) {
     }, [] as MoveScore[]);
 
   parsed.sort((a, b) => (a.multipv < b.multipv ? -1 : 1));
+
+  return parsed;
+}
+
+export function parsePolicy(output: string) {
+  const lines = output.split("\n");
+
+  const parsed = lines
+    .filter((line) => line.startsWith("info string") && !line.startsWith("info string node"))
+    .map((line) => {
+      const matches = line.match(/^info string ([a-z]\d[a-z]\d[a-z]?).+P: ( ?\d?\d?\d.\d\d?)/);
+      if (!matches) return null;
+      return {
+        move: matches[1],
+        policy: Number(matches[2]),
+      };
+    })
+    .filter((element): element is { move: string; policy: number } => !!element)
+    .sort((a, b) => (a.policy > b.policy ? -1 : 1));
 
   return parsed;
 }
