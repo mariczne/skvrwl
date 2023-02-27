@@ -2,7 +2,6 @@ import { MAX_NODE_SELECTION_THRESHOLD } from "../config";
 import { engineA } from "./engine";
 import { expectimax, NodeType } from "./expectimax";
 import {
-  convertQToCp,
   createPosition,
   isMateScore,
   mapMoveScoreQToCp,
@@ -35,11 +34,11 @@ export async function analyse(position: string, depth: number) {
   return { evaluation: finalEval };
 }
 
-export function printResults(evaluation: MoveScoreQOnly[], final = false): void {
+export function printResults(evaluation: MoveScoreQ[], final = false): void {
   evaluation.forEach((pv, index) =>
     writeLine(
       `info multipv ${index + 1} score` +
-        (!("mate" in pv) ? ` cp ${convertQToCp(pv.q)} q ${roundToTwoDecimals(pv.q)}` : "") +
+        (!("mate" in pv) ? ` cp ${pv.cp} q ${roundToTwoDecimals(pv.q)}` : "") +
         ` pv ${pv.move} string sfpv ${pv.multipv}`
     )
   );
