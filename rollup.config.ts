@@ -4,7 +4,7 @@ import { terser } from "rollup-plugin-terser";
 import shebang from "rollup-plugin-add-shebang";
 import type { RollupOptions } from "rollup";
 
-const outFile = "./skurwiel";
+const outFile = "./skvrwl";
 
 const config: RollupOptions = {
   input: "./src/main.ts",

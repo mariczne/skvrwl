@@ -22,7 +22,7 @@ async function main() {
 
     switch (command) {
       case "uci": {
-        writeLine("id name skurwiel");
+        writeLine("id name skvrwl");
         writeLine("id author mariczne");
         writeLine("uciok");
         break;
