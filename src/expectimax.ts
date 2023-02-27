@@ -1,6 +1,6 @@
 import { CHANCE_NODE_SELECTION_THRESHOLD, MAX_NODE_SELECTION_THRESHOLD } from "../config";
 import { engineB, engineA } from "./engine";
-import { convertMateScoreToQ, createPosition, isMateScore, replaceMoveScoreCpWithQ } from "./utils";
+import { createPosition, replaceMoveScoreCpWithQ } from "./utils";
 
 export enum NodeType {
   Max = "MAX",
@@ -8,29 +8,29 @@ export enum NodeType {
 }
 
 export async function expectimax(position: string, depth: number, nodeType: NodeType, previousQ: number) {
-  const positionEval = (await engineA.analyse(position, 1)).map(replaceMoveScoreCpWithQ);
+  const positionEval = (await engineA.analyse(position, 6)).map(replaceMoveScoreCpWithQ);
 
   if (positionEval.length === 0) return previousQ; // terminal node
 
-  const bestMove = positionEval[0];
+  const bestMoveQ = positionEval[0].q * (nodeType === NodeType.Chance ? -1 : 1);
+
+  if (process.env.DEBUG) {
+    console.log(position, bestMoveQ, nodeType);
+  }
 
   if (depth === 0) {
-    return (
-      (isMateScore(bestMove) ? convertMateScoreToQ(bestMove) : bestMove.q) * (nodeType === NodeType.Chance ? -1 : 1)
-    );
+    return bestMoveQ;
   }
 
   switch (nodeType) {
     case NodeType.Max: {
       let nodeValue = Number.NEGATIVE_INFINITY;
 
-      const candidateMoves = positionEval.filter((move) =>
-        isMateScore(bestMove) ? isMateScore(move) && move.mate > 0 : bestMove.q - move.q < MAX_NODE_SELECTION_THRESHOLD
-      );
+      const candidateMoves = positionEval.filter((move) => bestMoveQ - move.q < MAX_NODE_SELECTION_THRESHOLD);
 
       for (const moveScore of candidateMoves) {
         const positionMove = createPosition(position, moveScore.move);
-        nodeValue = Math.max(nodeValue, await expectimax(positionMove, depth - 1, NodeType.Chance, bestMove.q));
+        nodeValue = Math.max(nodeValue, await expectimax(positionMove, depth - 1, NodeType.Chance, bestMoveQ));
       }
 
       return nodeValue;
@@ -58,7 +58,7 @@ export async function expectimax(position: string, depth: number, nodeType: Node
 
       for (const moveScore of candidateMoves) {
         const positionMove = createPosition(position, moveScore.move);
-        nodeValue += moveScore.policy * (await expectimax(positionMove, depth - 1, NodeType.Max, bestMove.q));
+        nodeValue += moveScore.policy * (await expectimax(positionMove, depth - 1, NodeType.Max, bestMoveQ));
       }
 
       return nodeValue;

@@ -15,7 +15,6 @@ import {
 
 export async function analyse(position: string, depth: number) {
   const initialEval = (await engineA.analyse(position, 6)).map(replaceMoveScoreCpWithQ); // from now on we operate on Q
-console.log(initialEval);
 
   const bestMove = initialEval[0];
 

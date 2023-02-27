@@ -36,7 +36,7 @@ async function main() {
         break;
       }
       case "go": {
-        const { evaluation } = await analyse(position, 3);
+        const { evaluation } = await analyse(position, 2);
         printResults(evaluation, true);
         break;
       }

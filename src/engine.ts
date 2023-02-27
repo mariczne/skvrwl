@@ -44,6 +44,11 @@ export function createEngine(name: string, options?: EngineOptions) {
           engineProcess.stdout.off("data", listener);
 
           const parsed = parseScore(output, depth);
+
+          // clear UCI state before new analysis
+          send("ucinewgame");
+          send("position startpos");
+
           resolve(parsed);
         }
       };
@@ -106,6 +111,7 @@ export const engineA = createEngine(ENGINE_A_PATH, {
     ...COMMON_UCI,
     Threads: 1,
   },
+  // debug: ["stdout", "stderr"],
 });
 
 export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
@@ -115,6 +121,7 @@ export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
     WeightsFile: WEIGHTS_FILE_PATH,
     VerboseMoveStats: true,
   },
+  // debug: ["stdout", "stderr"],
 });
 
 export function cleanExit() {

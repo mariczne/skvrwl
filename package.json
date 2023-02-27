@@ -4,7 +4,6 @@
   "main": "main.ts",
   "scripts": {
     "start": "tsnd ./src/main.ts",
-    "server": "tsnd ./src/server.ts",
     "build": "rollup -c --configPlugin typescript",
     "test": "jest"
   },
