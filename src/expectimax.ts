@@ -1,3 +1,4 @@
+import { CHANCE_NODE_SELECTION_THRESHOLD, MAX_NODE_SELECTION_THRESHOLD } from "../config";
 import { engineB, engineA } from "./engine";
 import { convertMateScoreToQ, createPosition, isMateScore, replaceMoveScoreCpWithQ } from "./utils";
 
@@ -5,9 +6,6 @@ export enum NodeType {
   Max = "MAX",
   Chance = "CHANCE",
 }
-
-export const MAX_NODE_SELECTION_THRESHOLD = 0.4;
-const CHANCE_NODE_SELECTION_THRESHOLD = 15;
 
 export async function expectimax(position: string, depth: number, nodeType: NodeType, previousQ: number) {
   const positionEval = (await engineA.analyse(position, 1)).map(replaceMoveScoreCpWithQ);

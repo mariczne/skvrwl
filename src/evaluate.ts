@@ -1,5 +1,6 @@
+import { MAX_NODE_SELECTION_THRESHOLD } from "../config";
 import { engineA } from "./engine";
-import { expectimax, MAX_NODE_SELECTION_THRESHOLD, NodeType } from "./expectimax";
+import { expectimax, NodeType } from "./expectimax";
 import {
   convertQToCp,
   createPosition,

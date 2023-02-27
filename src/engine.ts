@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import path from "path";
+import { ENGINE_A_PATH, ENGINE_B_PATH, WEIGHTS_FILE_PATH } from "../config";
 import { parsePolicy, parseScore } from "./parse";
 
 export type EngineOptions = Partial<{
@@ -101,19 +101,18 @@ export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
 
 const COMMON_UCI = { MultiPV: 500 };
 
-export const engineA = createEngine("stockfish", {
+export const engineA = createEngine(ENGINE_A_PATH, {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
   },
-  debug: ["stdout", "stderr"],
 });
 
-export const engineB = createAuxiliaryEngine("lc0", {
+export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
   uci: {
     ...COMMON_UCI,
     Threads: 1,
-    WeightsFile: path.resolve(".", "weights", "maia-1200.pb.gz"),
+    WeightsFile: WEIGHTS_FILE_PATH,
     VerboseMoveStats: true,
   },
 });
