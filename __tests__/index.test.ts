@@ -1,16 +1,7 @@
+import { afterEach, beforeEach, expect, it, describe, afterAll } from "bun:test";
 import { engineB, engineA } from "../src/engine";
 import { analyse } from "../src/evaluate";
 import { MoveScoreQ } from "../src/utils";
-
-const jestConsole = console;
-
-beforeEach(() => {
-  global.console = require("console");
-});
-
-afterEach(() => {
-  global.console = jestConsole;
-});
 
 function filterTopMoves(evaluation: MoveScoreQ[]) {
   return evaluation.filter((move) => Math.abs(evaluation[0].q - move.q) < 0.1);

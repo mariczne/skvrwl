@@ -17,7 +17,7 @@ async function main() {
 
   let position = "startpos moves";
 
-  for await (const line of shell) {
+  shell.on("line", async (line) => {
     const command = getValidCommand(line);
 
     switch (command) {
@@ -45,7 +45,7 @@ async function main() {
       }
       default: // do nothing
     }
-  }
+  });
 }
 
 main();
