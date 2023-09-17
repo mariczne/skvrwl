@@ -104,11 +104,8 @@ export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
   return { ...engine, analyse };
 }
 
-const COMMON_UCI = { MultiPV: 500 };
-
 export const engineA = createEngine(ENGINE_A_PATH, {
   uci: {
-    ...COMMON_UCI,
     Threads: 1,
   },
   // debug: ["stdout", "stderr"],
@@ -116,12 +113,19 @@ export const engineA = createEngine(ENGINE_A_PATH, {
 
 export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
   uci: {
-    ...COMMON_UCI,
+    MultiPV: 500,
     Threads: 1,
     WeightsFile: WEIGHTS_FILE_PATH,
     VerboseMoveStats: true,
   },
   // debug: ["stdout", "stderr"],
+});
+
+export const movegen = createEngine(ENGINE_A_PATH, {
+  uci: {
+    MultiPV: 500,
+    Threads: 1,
+  },
 });
 
 export function cleanExit() {

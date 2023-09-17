@@ -1,23 +1,13 @@
-import { createInterface } from "readline";
 import { cleanExit } from "./engine";
 import { analyse, printResults } from "./evaluate";
 import { getValidCommand } from "./uci";
 import { writeLine } from "./utils";
 
-const shell = createInterface({
-  input: process.stdin,
-  output: process.stdout,
-  prompt: "",
-});
-
-shell.on("close", cleanExit);
-
 async function main() {
-  shell.prompt();
-
   let position = "startpos moves";
 
-  shell.on("line", async (line) => {
+  for await (const chunk of Bun.stdin.stream()) {
+    const line = Buffer.from(chunk).toString()
     const command = getValidCommand(line);
 
     switch (command) {
@@ -45,7 +35,7 @@ async function main() {
       }
       default: // do nothing
     }
-  });
+  }
 }
 
 main();
