@@ -11,7 +11,9 @@
   "license": "ISC",
   "scripts": {
     "start": "bun run ./src/main.ts --hot",
-    "build": "bun build --compile ./src/main.ts --outfile skvrwl",
+    "debug": "bun run start --inspect",
+    "compile": "bun build --compile ./src/main.ts --outfile skvrwl",
+    "build": "bun build --target=node ./src/main.ts --outfile skvrwl.mjs",
     "test": "bun test"
   }
 }
