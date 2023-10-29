@@ -1,17 +1,20 @@
+import { performance } from "perf_hooks";
 import { CHANCE_NODE_SELECTION_THRESHOLD, MAX_NODE_SELECTION_THRESHOLD } from "../config";
 import { engineB, engineA } from "./engine";
 import { createPosition, replaceMoveScoreCpWithQ, writeLine } from "./utils";
 
-export enum NodeType {
-  Max = "MAX",
-  Chance = "CHANCE",
-}
+export const NodeType = {
+  Max: "MAX",
+  Chance: "CHANCE",
+} as const
+
+export type NodeType = typeof NodeType[keyof typeof NodeType]
 
 export async function expectimax(position: string, depth: number, nodeType: NodeType, previousQ: number) {
   const perfAStart = performance.now();
-  const positionEval = (await engineA.analyse(position, 2)).map(replaceMoveScoreCpWithQ);
+  const positionEval = (await engineA.analyse(position, 6)).map(replaceMoveScoreCpWithQ);
   const perfAEnd = performance.now();
-  writeLine("engineA anal took " + (perfAEnd - perfAStart));
+  // writeLine("engineA anal took " + (perfAEnd - perfAStart));
 
   if (positionEval.length === 0) return previousQ; // terminal node
 
@@ -42,7 +45,7 @@ export async function expectimax(position: string, depth: number, nodeType: Node
       const perfBStart = performance.now();
       const probabilities = await engineB.analyse(position);
       const perfBEnd = performance.now();
-      writeLine("engineB anal took " + (perfBEnd - perfBStart));
+      // writeLine("engineB anal took " + (perfBEnd - perfBStart));
 
       const possibleResponses = probabilities.filter((move) => move.policy > CHANCE_NODE_SELECTION_THRESHOLD);
 

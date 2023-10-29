@@ -1,5 +1,5 @@
 import { MAX_NODE_SELECTION_THRESHOLD } from "../config";
-import { engineA, movegen } from "./engine";
+import { movegen } from "./engine";
 import { expectimax, NodeType } from "./expectimax";
 import {
   createPosition,
@@ -14,12 +14,14 @@ import {
 
 export async function analyse(position: string, depth: number) {
   const initialEval = (await movegen.analyse(position, 6)).map(replaceMoveScoreCpWithQ); // from now on we operate on Q
-  
+
   const bestMove = initialEval[0];
 
   const candidateMoves = initialEval.filter((move) =>
     isMateScore(bestMove) ? isMateScore(move) && move.mate > 0 : bestMove.q - move.q < MAX_NODE_SELECTION_THRESHOLD
   );
+
+  if (!candidateMoves.length) candidateMoves.push(bestMove)
 
   const evaluation: MoveScoreQOnly[] = [];
 
