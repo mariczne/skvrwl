@@ -1,31 +1,28 @@
 import { spawn } from "child_process";
-import { ENGINE_A_PATH, ENGINE_B_PATH, WEIGHTS_FILE_PATH } from "../config";
+import { DEBUG, ENGINE_A_PATH, ENGINE_B_PATH, TEST_ENV, WEIGHTS_FILE_PATH } from "../config";
 import { parsePolicy, parseScore } from "./parse";
+import { Logger } from "./log";
 
 export type EngineOptions = Partial<{
   arguments: string[];
   uci: Record<string, string | number | boolean>;
-  debug: ["stdout"?, "stderr"?];
 }>;
 
 export function createEngine(name: string, options?: EngineOptions) {
   const engineProcess = spawn(name, options?.arguments);
 
-  if (process.env.NODE_ENV !== "test") {
-    if (options?.debug?.includes("stdout")) {
+  if (!TEST_ENV) {
+    if (DEBUG) {
       engineProcess.stdout.on("data", (data) => {
-        console.log(`\n${engineProcess.spawnfile} stdout: ${data}`);
+        Logger.log(`\n${engineProcess.spawnfile} stdout: ${data}`);
       });
-    }
-
-    if (options?.debug?.includes("stderr")) {
       engineProcess.stderr.on("data", (data) => {
-        console.error(`\n${engineProcess.spawnfile} stderr: ${data}`);
+        Logger.error(`\n${engineProcess.spawnfile} stderr: ${data}`);
       });
     }
 
     engineProcess.on("close", (code) => {
-      console.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
+      Logger.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
     });
   }
 
@@ -79,7 +76,7 @@ export function createEngine(name: string, options?: EngineOptions) {
 export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
   const engine = createEngine(name, options);
 
-  const analyse = (position: string): Promise<{ move: string; policy: number }[]> => {
+  const analyse = (position: string): Promise<ReturnType<typeof parsePolicy>> => {
     return new Promise((resolve, _reject) => {
       let output = "";
 
@@ -108,7 +105,6 @@ export const engineA = createEngine(ENGINE_A_PATH, {
   uci: {
     Threads: 1,
   },
-  // debug: ["stdout", "stderr"],
 });
 
 export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
@@ -118,7 +114,6 @@ export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
     WeightsFile: WEIGHTS_FILE_PATH,
     VerboseMoveStats: true,
   },
-  // debug: ["stdout", "stderr"],
 });
 
 export const movegen = createEngine(ENGINE_A_PATH, {
