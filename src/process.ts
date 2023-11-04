@@ -6,6 +6,7 @@ type ProcessHandler = {
   process: ChildProcessWithoutNullStreams;
   send: (command: string) => void;
 };
+
 export function spawnProcess(name: string, args: string[] = []): ProcessHandler {
   const process = spawn(name, args);
 

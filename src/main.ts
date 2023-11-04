@@ -1,7 +1,8 @@
 import { createInterface } from "readline";
 import { cleanExit } from "./engine";
-import { analyse, printResults } from "./evaluate";
-import { getValidCommand } from "./uci";
+import { evaluate } from "./evaluate";
+import { printUciResults } from "./uci";
+import { getValidUciCommand } from "./uci";
 import { writeLine } from "./utils";
 
 const shell = createInterface({
@@ -18,7 +19,7 @@ async function main() {
   let position = "startpos moves";
 
   shell.on("line", async (line) => {
-    const command = getValidCommand(line);
+    const command = getValidUciCommand(line);
 
     switch (command) {
       case "uci": {
@@ -36,8 +37,8 @@ async function main() {
         break;
       }
       case "go": {
-        const { evaluation } = await analyse(position, 2);
-        printResults(evaluation, true);
+        const evaluation = await evaluate(position, 2);
+        printUciResults(evaluation, true);
         break;
       }
       case "quit": {

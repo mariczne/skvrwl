@@ -8,11 +8,9 @@ import {
   MoveScoreQ,
   MoveScoreQOnly,
   replaceMoveScoreCpWithQ,
-  roundToTwoDecimals,
-  writeLine,
 } from "./utils";
 
-export async function analyse(position: string, depth: number) {
+export async function evaluate(position: string, depth: number): Promise<MoveScoreQ[]> {
   const initialEval = (await movegen.analyse(position, 6)).map(replaceMoveScoreCpWithQ); // from now on we operate on Q
 
   const bestMove = initialEval[0];
@@ -30,19 +28,5 @@ export async function analyse(position: string, depth: number) {
     evaluation.push({ ...moveScore, q });
   }
 
-  const finalEval: MoveScoreQ[] = evaluation.toSorted((a, b) => (a.q > b.q ? -1 : 1)).map(mapMoveScoreQToCp);
-
-  return { evaluation: finalEval };
-}
-
-export function printResults(evaluation: MoveScoreQ[], final = false): void {
-  evaluation.forEach((pv, index) =>
-    writeLine(
-      `info multipv ${index + 1} score` +
-        (!("mate" in pv) ? ` cp ${pv.cp} q ${roundToTwoDecimals(pv.q)}` : "") +
-        ` pv ${pv.move} string sfpv ${pv.multipv}`
-    )
-  );
-
-  if (final) writeLine(`bestmove ${evaluation[0].move}`);
+  return evaluation.toSorted((a, b) => (a.q > b.q ? -1 : 1)).map(mapMoveScoreQToCp);
 }

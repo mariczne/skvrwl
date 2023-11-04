@@ -1,5 +1,5 @@
 import { ENGINE_A_PATH, ENGINE_B_PATH, WEIGHTS_FILE_PATH } from "../config";
-import { Move, MoveScore, Policy, parsePolicy, parseScore } from "./parse";
+import { Move, parsePolicy, parseScore } from "./parse";
 import { spawnProcess } from "./process";
 
 type EngineOptions = Partial<{

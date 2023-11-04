@@ -1,6 +1,6 @@
 import { expect, it, describe, afterAll } from "bun:test";
 import { engineB, engineA } from "../src/engine";
-import { analyse } from "../src/evaluate";
+import { evaluate } from "../src/evaluate";
 import { MoveScoreQ } from "../src/utils";
 
 function filterTopMoves(evaluation: MoveScoreQ[]) {
@@ -42,7 +42,7 @@ for (const [FEN, TEST] of Object.entries(TEST_CASES)) {
     it(
       TEST.desc,
       async () => {
-        const { evaluation } = await analyse(`fen ${FEN}`, 2);
+        const { evaluation } = await evaluate(`fen ${FEN}`, 2);
 
         const topMoves = filterTopMoves(evaluation);
         console.log(topMoves);
