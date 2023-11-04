@@ -8,3 +8,5 @@ skvrwl
 log.txt
 
 .DS_Store
+
+.*bun-build

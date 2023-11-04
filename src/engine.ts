@@ -1,82 +1,79 @@
-import { spawn } from "child_process";
-import { DEBUG, ENGINE_A_PATH, ENGINE_B_PATH, TEST_ENV, WEIGHTS_FILE_PATH } from "../config";
-import { parsePolicy, parseScore } from "./parse";
-import { Logger } from "./log";
+import { ENGINE_A_PATH, ENGINE_B_PATH, WEIGHTS_FILE_PATH } from "../config";
+import { Move, MoveScore, Policy, parsePolicy, parseScore } from "./parse";
+import { spawnProcess } from "./process";
 
-export type EngineOptions = Partial<{
-  arguments: string[];
+type EngineOptions = Partial<{
+  args: string[];
   uci: Record<string, string | number | boolean>;
 }>;
 
-export function createEngine(name: string, options?: EngineOptions) {
-  const engineProcess = spawn(name, options?.arguments);
+type Engine<T extends (position: string, ...args: any[]) => Promise<Move[]>> = {
+  analyse: T;
+  exit: () => void;
+};
 
-  if (!TEST_ENV) {
-    if (DEBUG) {
-      engineProcess.stdout.on("data", (data) => {
-        Logger.log(`\n${engineProcess.spawnfile} stdout: ${data}`);
-      });
-      engineProcess.stderr.on("data", (data) => {
-        Logger.error(`\n${engineProcess.spawnfile} stderr: ${data}`);
-      });
-    }
+export function createEngine<T extends (position: string,...args: any[]) => Promise<Move[]>>(
+  name: string,
+  handleAnalysis: (processHandler: ReturnType<typeof spawnProcess>) => T,
+  options?: EngineOptions
+): Engine<T> {
+  const processHandler = spawnProcess(name, options?.args);
+  const analyse = handleAnalysis(processHandler);
+  const exit = () => processHandler.process.kill();
 
-    engineProcess.on("close", (code) => {
-      Logger.log(`\n${engineProcess.spawnfile} exited with code ${code}`);
-    });
-  }
+  Object.entries(options?.uci ?? []).forEach(([name, value]) =>
+    processHandler.send(`setoption name ${name} value ${value}\n`)
+  );
 
-  const send = (command: string) => {
-    engineProcess.stdin.write(`${command}\n`);
-  };
-
-  const analyse = (position: string, depth: number): Promise<ReturnType<typeof parseScore>> => {
-    return new Promise((resolve, _reject) => {
-      let output = "";
-
-      const listener = (chunk: unknown) => {
-        output += String(chunk);
-
-        if (String(chunk).includes("bestmove")) {
-          engineProcess.stdout.off("data", listener);
-
-          const parsed = parseScore(output, depth);
-
-          // clear UCI state before new analysis
-          send("ucinewgame");
-          send("position startpos");
-
-          resolve(parsed);
-        }
-      };
-
-      engineProcess.stdout.on("data", listener);
-
-      send(`position ${position}`);
-      send(`go depth ${depth}`);
-    });
-  };
-
-  if (options?.uci) {
-    for (const [name, value] of Object.entries(options.uci)) {
-      send(`setoption name ${name} value ${value}\n`);
-    }
-  }
-
-  send("ucinewgame");
-  send("position startpos");
+  processHandler.send("ucinewgame");
+  processHandler.send("position startpos");
 
   return {
-    send,
     analyse,
-    engineProcess,
+    exit,
   };
 }
 
-export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
-  const engine = createEngine(name, options);
+type FishlikeEngine = Engine<(position: string, depth: number) => Promise<ReturnType<typeof parseScore>>>;
 
-  const analyse = (position: string): Promise<ReturnType<typeof parsePolicy>> => {
+export function createFishlikeEngine(path: string, options: EngineOptions): FishlikeEngine {
+  return createEngine(
+    path,
+    (processHandler) =>
+      (position: string, depth: number): Promise<ReturnType<typeof parseScore>> => {
+        return new Promise((resolve, _reject) => {
+          let output = "";
+
+          const listener = (chunk: unknown) => {
+            output += String(chunk);
+
+            if (String(chunk).includes("bestmove")) {
+              processHandler.process.stdout.off("data", listener);
+
+              const parsed = parseScore(output, depth);
+
+              // clear UCI state before new analysis
+              processHandler.send("ucinewgame");
+              processHandler.send("position startpos");
+
+              resolve(parsed);
+            }
+          };
+
+          processHandler.process.stdout.on("data", listener);
+
+          processHandler.send(`position ${position}`);
+          processHandler.send(`go depth ${depth}`);
+        });
+      },
+    options
+  );
+}
+
+type LeelalikeEngine = Engine<(position: string) => Promise<ReturnType<typeof parsePolicy>>>;
+
+export function createLeelalikeEngine(name: string, options?: EngineOptions): LeelalikeEngine {
+  return createEngine(name, (processHandler) => (position: string): Promise<ReturnType<typeof parsePolicy>> => {
     return new Promise((resolve, _reject) => {
       let output = "";
 
@@ -84,30 +81,28 @@ export function createAuxiliaryEngine(name: string, options?: EngineOptions) {
         output += String(chunk);
 
         if (String(chunk).includes("bestmove")) {
-          engine.engineProcess.stdout.off("data", listener);
+          processHandler.process.stdout.off("data", listener);
 
           const parsed = parsePolicy(output);
           resolve(parsed);
         }
       };
 
-      engine.engineProcess.stdout.on("data", listener);
+      processHandler.process.stdout.on("data", listener);
 
-      engine.send(`position ${position}`);
-      engine.send(`go nodes 1`);
+      processHandler.send(`position ${position}`);
+      processHandler.send(`go nodes 1`);
     });
-  };
-
-  return { ...engine, analyse };
+  }, options)
 }
 
-export const engineA = createEngine(ENGINE_A_PATH, {
+export const engineA = createFishlikeEngine(ENGINE_A_PATH, {
   uci: {
     Threads: 1,
   },
 });
 
-export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
+export const engineB = createLeelalikeEngine(ENGINE_B_PATH, {
   uci: {
     MultiPV: 500,
     Threads: 1,
@@ -116,7 +111,7 @@ export const engineB = createAuxiliaryEngine(ENGINE_B_PATH, {
   },
 });
 
-export const movegen = createEngine(ENGINE_A_PATH, {
+export const movegen = createFishlikeEngine(ENGINE_A_PATH, {
   uci: {
     MultiPV: 500,
     Threads: 1,
@@ -124,6 +119,6 @@ export const movegen = createEngine(ENGINE_A_PATH, {
 });
 
 export function cleanExit() {
-  [engineA, engineB].forEach((engine) => engine.engineProcess.kill());
+  [engineA, engineB].forEach((engine) => engine.exit());
   process.exit(0);
 }

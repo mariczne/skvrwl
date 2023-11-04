@@ -30,8 +30,7 @@ export async function analyse(position: string, depth: number) {
     evaluation.push({ ...moveScore, q });
   }
 
-  evaluation.sort((a, b) => (a.q > b.q ? -1 : 1));
-  const finalEval: MoveScoreQ[] = evaluation.map(mapMoveScoreQToCp);
+  const finalEval: MoveScoreQ[] = evaluation.toSorted((a, b) => (a.q > b.q ? -1 : 1)).map(mapMoveScoreQToCp);
 
   return { evaluation: finalEval };
 }

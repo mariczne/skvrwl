@@ -55,5 +55,5 @@ for (const [FEN, TEST] of Object.entries(TEST_CASES)) {
 }
 
 afterAll(() => {
-  [engineA, engineB].forEach((engine) => engine.engineProcess.kill());
+  [engineA, engineB].forEach((engine) => engine.exit());
 });
