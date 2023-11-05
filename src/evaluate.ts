@@ -1,6 +1,6 @@
 import { MAX_NODE_SELECTION_THRESHOLD } from "../config";
-import { movegen } from "./engine";
 import { expectimax, NodeType } from "./expectimax";
+import { movegen } from "./main";
 import {
   createPosition,
   isMateScore,

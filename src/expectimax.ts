@@ -1,8 +1,8 @@
 import { performance } from "perf_hooks";
 import { CHANCE_NODE_SELECTION_THRESHOLD, MAX_NODE_SELECTION_THRESHOLD } from "../config";
-import { engineB, engineA } from "./engine";
-import { createPosition, replaceMoveScoreCpWithQ, writeLine } from "./utils";
+import { createPosition, replaceMoveScoreCpWithQ } from "./utils";
 import { Logger } from "./log";
+import { engineA, engineB } from "./main";
 
 export const NodeType = {
   Max: "MAX",

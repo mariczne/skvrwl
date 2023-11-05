@@ -4,6 +4,9 @@ import { evaluate } from "./evaluate";
 import { printUciResults } from "./uci";
 import { getValidUciCommand } from "./uci";
 import { writeLine } from "./utils";
+import { createFishlikeEngine } from "./stockfish";
+import { createLeelalikeEngine } from "./leela";
+import { ENGINE_A_PATH, ENGINE_B_PATH, WEIGHTS_FILE_PATH } from "../config";
 
 const shell = createInterface({
   input: process.stdin,
@@ -12,6 +15,28 @@ const shell = createInterface({
 });
 
 shell.on("close", cleanExit);
+
+export const engineA = createFishlikeEngine(ENGINE_A_PATH, {
+  uci: {
+    Threads: 1,
+  },
+});
+
+export const engineB = createLeelalikeEngine(ENGINE_B_PATH, {
+  uci: {
+    MultiPV: 500,
+    Threads: 1,
+    WeightsFile: WEIGHTS_FILE_PATH,
+    VerboseMoveStats: true,
+  },
+});
+
+export const movegen = createFishlikeEngine(ENGINE_A_PATH, {
+  uci: {
+    MultiPV: 500,
+    Threads: 1,
+  },
+});
 
 async function main() {
   shell.prompt();
@@ -42,7 +67,7 @@ async function main() {
         break;
       }
       case "quit": {
-        cleanExit();
+        cleanExit([engineA, engineB, movegen]);
       }
       default: // do nothing
     }
