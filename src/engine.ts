@@ -32,8 +32,3 @@ export function createEngine<T = (position: string,...args: any[]) => Promise<Mo
     exit,
   };
 }
-
-export function cleanExit(engines: Engine[]) {
-  engines.forEach((engine) => engine.exit());
-  process.exit(0);
-}

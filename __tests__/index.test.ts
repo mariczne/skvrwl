@@ -1,14 +1,35 @@
 import { expect, it, describe, afterAll } from "bun:test";
-import { engineB, engineA } from "../src/engine";
 import { evaluate } from "../src/evaluate";
 import { MoveScoreQ } from "../src/utils";
+import { ENGINE_A_PATH, ENGINE_B_PATH, WEIGHTS_FILE_PATH } from "../config";
+import { createLeelalikeEngine } from "../src/leela";
+import { createFishlikeEngine } from "../src/stockfish";
 
 function filterTopMoves(evaluation: MoveScoreQ[]) {
   return evaluation.filter((move) => Math.abs(evaluation[0].q - move.q) < 0.1).map((moveScore) => moveScore.move);
 }
 
-// const move = (move: string) => ({cp: expect.any, mate: expect.any,
-//    multipv: expect.any, q: expect.any, move})
+export const engineA = createFishlikeEngine(ENGINE_A_PATH, {
+  uci: {
+    Threads: 1,
+  },
+});
+
+export const engineB = createLeelalikeEngine(ENGINE_B_PATH, {
+  uci: {
+    MultiPV: 500,
+    Threads: 1,
+    WeightsFile: WEIGHTS_FILE_PATH,
+    VerboseMoveStats: true,
+  },
+});
+
+export const movegen = createFishlikeEngine(ENGINE_A_PATH, {
+  uci: {
+    MultiPV: 500,
+    Threads: 1,
+  },
+});
 
 const TEST_CASES: Record<string, { desc: string; call: (topMoves: string[]) => void }> = {
   "r3kbnr/ppp2ppp/8/3Pp3/3n1PR1/3P4/PPP1BP1q/RNBQK3 b Qkq - 0 9": {
@@ -42,7 +63,7 @@ for (const [FEN, TEST] of Object.entries(TEST_CASES)) {
     it(
       TEST.desc,
       async () => {
-        const { evaluation } = await evaluate(`fen ${FEN}`, 2);
+        const evaluation = await evaluate(`fen ${FEN}`, 2);
 
         const topMoves = filterTopMoves(evaluation);
         console.log(topMoves);
@@ -55,5 +76,5 @@ for (const [FEN, TEST] of Object.entries(TEST_CASES)) {
 }
 
 afterAll(() => {
-  [engineA, engineB].forEach((engine) => engine.exit());
+  [engineA, engineB, movegen].forEach((engine) => engine.exit());
 });

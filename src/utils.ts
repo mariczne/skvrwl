@@ -62,3 +62,7 @@ export function mapMoveScoreQToCp(moveScoreQ: MoveScoreQOnly) {
 export function writeLine(line: string) {
   process.stdout.write(line + "\n");
 }
+
+export function sortByQDescending(a: {q: number}, b: {q: number}) {
+  return a.q > b.q ? -1 : 1;
+}

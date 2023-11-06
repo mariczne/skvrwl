@@ -8,10 +8,11 @@ import {
   MoveScoreQ,
   MoveScoreQOnly,
   replaceMoveScoreCpWithQ,
+  sortByQDescending,
 } from "./utils";
 
 export async function evaluate(position: string, depth: number): Promise<MoveScoreQ[]> {
-  const initialEval = (await movegen.analyse(position, 6)).map(replaceMoveScoreCpWithQ); // from now on we operate on Q
+  const initialEval = (await movegen.analyse(position, 6)).map(replaceMoveScoreCpWithQ).toSorted(sortByQDescending); // from now on we operate on Q
 
   const bestMove = initialEval[0];
 
@@ -19,7 +20,7 @@ export async function evaluate(position: string, depth: number): Promise<MoveSco
     isMateScore(bestMove) ? isMateScore(move) && move.mate > 0 : bestMove.q - move.q < MAX_NODE_SELECTION_THRESHOLD
   );
 
-  if (!candidateMoves.length) candidateMoves.push(bestMove)
+  if (!candidateMoves.length) candidateMoves.push(bestMove);
 
   const evaluation: MoveScoreQOnly[] = [];
 
@@ -28,5 +29,5 @@ export async function evaluate(position: string, depth: number): Promise<MoveSco
     evaluation.push({ ...moveScore, q });
   }
 
-  return evaluation.toSorted((a, b) => (a.q > b.q ? -1 : 1)).map(mapMoveScoreQToCp);
+  return evaluation.toSorted(sortByQDescending).map(mapMoveScoreQToCp);
 }
