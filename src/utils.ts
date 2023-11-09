@@ -66,3 +66,7 @@ export function writeLine(line: string) {
 export function sortByQDescending(a: {q: number}, b: {q: number}) {
   return a.q > b.q ? -1 : 1;
 }
+
+export function sumBy<T>(collection: T[], elementToNumber: (element: T) => number) {
+  return collection.reduce((acc, curr) => acc + elementToNumber(curr), 0)
+}

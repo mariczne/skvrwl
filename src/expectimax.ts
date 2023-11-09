@@ -58,7 +58,7 @@ export async function expectimax(position: string, depth: number, nodeType: Node
 
       let nodeValue = 0;
 
-      const policiesSum = possibleResponses.reduce((prev, curr) => prev + curr.policy, 0);
+      const policiesSum = sumBy(possibleResponses, response => response.policy)
 
       const candidateMoves = possibleResponses.map((response) => ({
         ...response,
