@@ -1,3 +1,4 @@
+import { Observable } from "rxjs";
 import { Move } from "./parse";
 import { spawnProcess } from "./process";
 
@@ -6,12 +7,12 @@ export type EngineOptions = Partial<{
   uci: Record<string, string | number | boolean>;
 }>;
 
-export type Engine<T = (position: string, ...args: any[]) => Promise<Move[]>> = {
+export type Engine<T = (position: string, ...args: any[]) => Observable<Move[]>> = {
   analyse: T;
   exit: () => void;
 };
 
-export function createEngine<T = (position: string,...args: any[]) => Promise<Move[]>>(
+export function createEngine<T = (position: string,...args: any[]) => Observable<Move[]>>(
   name: string,
   handleAnalysis: (processHandler: ReturnType<typeof spawnProcess>) => T,
   options?: EngineOptions

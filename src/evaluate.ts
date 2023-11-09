@@ -1,3 +1,4 @@
+import { lastValueFrom } from "rxjs";
 import { MAX_NODE_SELECTION_THRESHOLD } from "../config";
 import { expectimax, NodeType } from "./expectimax";
 import { movegen } from "./main";
@@ -10,9 +11,13 @@ import {
   replaceMoveScoreCpWithQ,
   sortByQDescending,
 } from "./utils";
+import { performance } from "perf_hooks";
 
 export async function evaluate(position: string, depth: number): Promise<MoveScoreQ[]> {
-  const initialEval = (await movegen.analyse(position, 6)).map(replaceMoveScoreCpWithQ).toSorted(sortByQDescending); // from now on we operate on Q
+  const perfA = performance.now()
+  const initialEval = (await lastValueFrom(movegen.analyse(position, 6)))
+    .map(replaceMoveScoreCpWithQ)
+    .toSorted(sortByQDescending); // from now on we operate on Q
 
   const bestMove = initialEval[0];
 
@@ -28,6 +33,8 @@ export async function evaluate(position: string, depth: number): Promise<MoveSco
     const q = await expectimax(createPosition(position, moveScore.move), depth, NodeType.Chance, moveScore.q);
     evaluation.push({ ...moveScore, q });
   }
-
+  const perfB = performance.now()
+  console.log(perfB - perfA);
+  
   return evaluation.toSorted(sortByQDescending).map(mapMoveScoreQToCp);
 }

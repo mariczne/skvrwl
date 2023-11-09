@@ -1,28 +1,33 @@
+import { Observable, mergeMap, toArray } from "rxjs";
 import { Engine, EngineOptions, createEngine } from "./engine";
-import { parsePolicy } from "./parse";
+import { Policy, parsePolicy } from "./parse";
 
-export type LeelalikeEngine = Engine<(position: string) => Promise<ReturnType<typeof parsePolicy>>>;
+export type LeelalikeEngine = Engine<(position: string) => Observable<Policy[]>>;
 
 export function createLeelalikeEngine(name: string, options?: EngineOptions): LeelalikeEngine {
-  return createEngine(name, (processHandler) => (position: string): Promise<ReturnType<typeof parsePolicy>> => {
-    return new Promise((resolve, _reject) => {
-      let output = "";
+  return createEngine(
+    name,
+    (processHandler) =>
+      (position: string): Observable<Policy[]> => {
+        return new Observable((subscriber) => {
+          const listener = (chunk: unknown) => {
+            subscriber.next(chunk);
 
-      const listener = (chunk: unknown) => {
-        output += String(chunk);
+            if (String(chunk).includes("bestmove")) {
+              subscriber.complete();
+              processHandler.process.stdout.off("data", listener);
+            }
+          };
 
-        if (String(chunk).includes("bestmove")) {
-          processHandler.process.stdout.off("data", listener);
+          processHandler.process.stdout.on("data", listener);
 
-          const parsed = parsePolicy(output);
-          resolve(parsed);
-        }
-      };
-
-      processHandler.process.stdout.on("data", listener);
-
-      processHandler.send(`position ${position}`);
-      processHandler.send(`go nodes 1`);
-    });
-  }, options);
+          processHandler.send(`position ${position}`);
+          processHandler.send(`go nodes 1`);
+        }).pipe(
+          mergeMap((chunk) => parsePolicy(String(chunk))),
+          toArray()
+        );
+      },
+    options
+  );
 }
