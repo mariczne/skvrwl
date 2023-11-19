@@ -34,11 +34,11 @@ export function parseScoreLine(line: string): MoveScore | null {
 export function parseScore(output: string, finalDepth: number) {
   return output
     .split("\n")
-    .filter((line) => line.startsWith(`info depth ${finalDepth}`))
     .reduce((total, line) => {
+      if (!line.startsWith(`info depth ${finalDepth}`)) return total;
+
       const parsedScoreLine = parseScoreLine(line);
-      if (parsedScoreLine) return [...total, parsedScoreLine];
-      return total;
+      return parsedScoreLine ? [...total, parsedScoreLine] : total;
     }, [] as MoveScore[])
     .toSorted((a, b) => (a.multipv < b.multipv ? -1 : 1));
 }
@@ -50,15 +50,16 @@ export type Policy = Move & {
 export function parsePolicy(output: string) {
   return output
     .split("\n")
-    .filter((line) => line.startsWith("info string") && !line.startsWith("info string node"))
-    .map((line) => {
+    .reduce((total, line) => {
+      if (!(line.startsWith("info string") && !line.startsWith("info string node"))) return total
+
       const matches = line.match(/^info string ([a-z]\d[a-z]\d[a-z]?).+P: ( ?\d?\d?\d.\d\d?)/) || [];
-      if (!matches) return null;
-      return {
+      if (!matches) return total;
+
+      return [...total, {
         move: matches[1],
         policy: Number(matches[2]),
-      };
-    })
-    .filter((element): element is { move: string; policy: number } => !!element)
+      }];
+    }, [] as Policy[])
     .toSorted((a, b) => (a.policy > b.policy ? -1 : 1));
 }
